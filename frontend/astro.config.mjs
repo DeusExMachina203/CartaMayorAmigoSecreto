@@ -7,6 +7,7 @@ import { defineConfig } from "astro/config";
 // (por defecto: mismo origen, con proxy en desarrollo hacia :8000).
 export default defineConfig({
   output: "static",
+  devToolbar: { enabled: false },
   vite: {
     server: {
       // En desarrollo, las peticiones /api van al backend de FastAPI
