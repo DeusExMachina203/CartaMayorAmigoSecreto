@@ -38,8 +38,13 @@ import Layout from "../layouts/Layout.astro";
       <input id="precio" maxlength="50" placeholder="Ej.: S/ 45" />
 
       <label for="imagen">URL de imagen (opcional)</label>
-      <input id="imagen" type="url" placeholder="https://..." />
+      <input id="imagen" type="url" placeholder="Pega el enlace de una imagen..." />
       <img id="preview-imagen" class="preview-img oculto" alt="Vista previa del regalo" />
+      <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap; margin-top:0.4rem;">
+        <button type="button" id="btn-subir" class="btn fantasma">📷 Subir imagen de mi dispositivo</button>
+        <input id="archivo-imagen" type="file" accept="image/*" class="oculto" />
+        <span style="font-size:0.85rem; color:var(--gris);">máx. 50 MB</span>
+      </div>
 
       <label for="notas">Detalles (opcional)</label>
       <textarea id="notas" rows="2" placeholder="Talla, color, marca, dónde conseguirlo..."></textarea>
@@ -67,7 +72,7 @@ import Layout from "../layouts/Layout.astro";
 </style>
 
 <script>
-  import { api, ApiError, quienSoy } from "../lib/api.js";
+  import { api, API_BASE, quienSoy } from "../lib/api.js";
 
   const $ = (id) => document.getElementById(id);
 
@@ -251,4 +256,45 @@ import Layout from "../layouts/Layout.astro";
     prev.src = url;
   }
   $("imagen").addEventListener("input", actualizarPreview);
+
+  // ---------- Subida de imagen del dispositivo ----------
+  const LIMITE_BYTES = 50 * 1024 * 1024; // 50 MB
+
+  $("btn-subir").addEventListener("click", () => $("archivo-imagen").click());
+
+  $("archivo-imagen").addEventListener("change", async (e) => {
+    const archivo = e.target.files[0];
+    e.target.value = ""; // permitir elegir el mismo archivo dos veces
+    if (!archivo) return;
+    if (archivo.size > LIMITE_BYTES) {
+      aviso(`La imagen pesa ${(archivo.size / 1024 / 1024).toFixed(1)} MB y supera el límite de 50 MB.`);
+      return;
+    }
+
+    const btn = $("btn-subir");
+    btn.disabled = true;
+    btn.textContent = "Subiendo...";
+    try {
+      const cuerpo = new FormData();
+      cuerpo.append("archivo", archivo);
+      const res = await fetch(`${API_BASE}/api/imagenes`, {
+        method: "POST",
+        credentials: "include",
+        body: cuerpo,
+      });
+      if (!res.ok) {
+        const datos = await res.json().catch(() => ({}));
+        throw new Error(datos.detail || `Error ${res.status}`);
+      }
+      const { url } = await res.json();
+      $("imagen").value = url;
+      actualizarPreview();
+      aviso("¡Imagen subida!", "ok");
+    } catch (err) {
+      aviso(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "📷 Subir imagen de mi dispositivo";
+    }
+  });
 </script>

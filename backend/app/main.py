@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import Base, engine
-from .routers import admin, auth, me, participants, wishlist
+from .routers import admin, auth, imagenes, me, participants, wishlist
 
 logging.basicConfig(level=logging.INFO)
 
@@ -40,6 +40,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(wishlist.router)
+app.include_router(imagenes.router)
 app.include_router(participants.router)
 app.include_router(me.router)
 app.include_router(admin.admin_auth)

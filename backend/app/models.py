@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -62,6 +62,17 @@ class WishlistItem(Base):
     asin: Mapped[str] = mapped_column(String(10), default="")
 
     player: Mapped["Player"] = relationship(back_populates="wishlist")
+
+
+class Imagen(Base):
+    """Imagen subida por un participante (guardada como blob)."""
+
+    __tablename__ = "imagenes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    mime: Mapped[str] = mapped_column(String(100))
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
 class Assignment(Base):
