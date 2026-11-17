@@ -1,7 +1,7 @@
-# Amigo Secreto 🎁
+# CartaMayorAmigoSecreto 🎁
 
-Organizador de intercambio de regalos para el grupo. Backend en FastAPI,
-frontend en Astro. Todo en español.
+Amigo Secreto para carta mayor. Organizador de intercambio de regalos para el
+grupo. Backend en FastAPI, frontend en Astro. Todo en español.
 
 ## Backend
 
