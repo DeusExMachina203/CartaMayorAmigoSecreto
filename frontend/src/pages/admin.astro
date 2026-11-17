@@ -14,6 +14,20 @@ import Layout from "../layouts/Layout.astro";
   </form>
 
   <div id="panel" class="oculto">
+    <!-- Invitación -->
+    <section class="tarjeta" style="margin-top:1rem;">
+      <h2 style="margin-top:0;">Enlace de invitación 🔗</h2>
+      <p style="margin:0 0 0.5rem; font-size:0.95rem; color:var(--gris);">
+        Compártelo con tus amigos: con ese enlace podrán registrarse con su
+        correo, nombre y este código.
+      </p>
+      <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
+        <input id="enlace-invitacion" readonly style="flex:1; min-width:220px; font-size:0.9rem;" />
+        <button class="btn secundario" id="btn-copiar" type="button">Copiar</button>
+        <button class="btn fantasma" id="btn-regenerar" type="button">Generar nuevo</button>
+      </div>
+    </section>
+
     <!-- Configuración -->
     <section class="tarjeta" style="margin-top:1rem;">
       <h2 style="margin-top:0;">Configuración del evento</h2>
@@ -111,12 +125,30 @@ import Layout from "../layouts/Layout.astro";
     $("bmin").value = cfg.budget_min ?? "";
     $("bmax").value = cfg.budget_max ?? "";
     $("fdate").value = cfg.event_date || "";
+    $("enlace-invitacion").value = `${location.origin}/ingresar?inv=${cfg.invite_code}`;
     $("estado-sorteo").textContent = cfg.draw_done
       ? "El sorteo ya se realizó 🎉"
       : "Aún no se ha realizado";
     $("btn-sorteo").disabled = cfg.draw_done;
     $("btn-deshacer").classList.toggle("oculto", !cfg.draw_done);
   }
+
+  $("btn-copiar").addEventListener("click", async () => {
+    await navigator.clipboard.writeText($("enlace-invitacion").value);
+    $("btn-copiar").textContent = "¡Copiado! ✓";
+    setTimeout(() => ($("btn-copiar").textContent = "Copiar"), 1800);
+  });
+
+  $("btn-regenerar").addEventListener("click", async () => {
+    if (!confirm("¿Generar un nuevo enlace de invitación? El anterior dejará de funcionar.")) return;
+    try {
+      await api("/api/admin/config/invitacion", { method: "POST" });
+      aviso("Nuevo enlace generado.", "ok");
+      cargarConfig();
+    } catch (err) {
+      aviso(err.message);
+    }
+  });
 
   $("btn-config").addEventListener("click", async () => {
     try {

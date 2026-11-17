@@ -38,6 +38,17 @@ def pedir_y_verificar_codigo(client, email, codigo):
     return r.json()
 
 
+def pedir_y_verificar_registro(client, email, nombre, invitacion):
+    """Se registra con invitación, captura el código del log y entra."""
+    r = client.post(
+        "/api/auth/solicitar-codigo",
+        json={"email": email, "name": nombre, "invite_code": invitacion},
+    )
+    assert r.status_code == 202, f"solicitar-codigo: {r.status_code} {r.text}"
+    assert email in codigos, f"no se capturó código para {email}"
+    return pedir_y_verificar_codigo(client, email, codigos[email])
+
+
 def pedir_y_verificar(client, email):
     """Pide un código, lo captura del log y canjea el código por sesión."""
     r = client.post("/api/auth/solicitar-codigo", json={"email": email})
@@ -57,15 +68,52 @@ def main():
         assert r.status_code == 200, r.text
         print("== Login admin OK ==")
 
-        # ---- Participantes ----
-        for nombre, email in AMIGOS:
+        # ---- Participantes (creados por el admin, p. ej. para enviarles el código directo) ----
+        for nombre, email in AMIGOS[:2]:
             r = c.post("/api/admin/participantes", json={"name": nombre, "email": email})
             assert r.status_code == 201, r.text
         r = c.post(
             "/api/admin/participantes", json={"name": "Dup", "email": "diana@example.com"}
         )
         assert r.status_code == 409, "correo duplicado debió dar 409"
-        print("== 3 participantes creados, duplicado rechazado ==")
+        print("== 2 participantes creados por admin, duplicado rechazado ==")
+
+        # ---- Auto-registro con código de invitación ----
+        r = c.get("/api/admin/config")
+        assert r.status_code == 200 and r.json()["invite_code"], r.text
+        invitacion = r.json()["invite_code"]
+
+        # Sin invitación no se puede registrar
+        r = c.post("/api/auth/solicitar-codigo", json={"email": "maria@example.com"})
+        assert r.status_code == 403, r.text
+        # Invitación inválida tampoco
+        r = c.post(
+            "/api/auth/solicitar-codigo",
+            json={"email": "maria@example.com", "name": "María", "invite_code": "malo"},
+        )
+        assert r.status_code == 403, r.text
+        # Con invitación válida sí (y falta de nombre da 422)
+        r = c.post(
+            "/api/auth/solicitar-codigo",
+            json={"email": "maria@example.com", "invite_code": invitacion},
+        )
+        assert r.status_code == 422, "falta el nombre, debió dar 422"
+        maria = pedir_y_verificar_registro(
+            c, "maria@example.com", "María Torres", invitacion
+        )
+        assert maria["name"] == "María Torres"
+        print("== Auto-registro con invitación OK (inválida y sin nombre rechazadas) ==")
+
+        # Regenerar la invitación invalida la anterior
+        r = c.post("/api/admin/config/invitacion")
+        nueva_invitacion = r.json()["invite_code"]
+        assert nueva_invitacion != invitacion
+        r = c.post(
+            "/api/auth/solicitar-codigo",
+            json={"email": "otro@example.com", "name": "X", "invite_code": invitacion},
+        )
+        assert r.status_code == 403, "la invitación vieja debió dejar de servir"
+        print("== Regeneración de invitación OK ==")
 
         # ---- Config ----
         r = c.put(

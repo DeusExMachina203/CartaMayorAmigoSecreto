@@ -17,10 +17,19 @@ import Layout from "../layouts/Layout.astro";
         placeholder="tucorreo@ejemplo.com"
         autocomplete="email"
       />
+
+      <div id="campos-registro" class="oculto">
+        <p class="paso" style="margin-top:1rem;">Parece que eres nuevo 🎁</p>
+        <label for="nombre">Tu nombre</label>
+        <input id="nombre" maxlength="120" placeholder="Ej.: Diana Quispe" />
+        <label for="invitacion">Código de invitación</label>
+        <input id="invitacion" maxlength="50" placeholder="Viene en el enlace que te compartieron" />
+      </div>
+
       <p style="margin:0.6rem 0 0; font-size:0.9rem; color:var(--gris);">
-        Debe ser el correo con el que te registró el organizador.
+        Te enviaremos un código de 6 dígitos para entrar. Sin contraseñas.
       </p>
-      <button class="btn" style="margin-top:1rem;" type="submit">Recibir código</button>
+      <button class="btn" style="margin-top:1rem;" type="submit" id="btn-correo">Recibir código</button>
     </form>
 
     <form id="form-codigo" class="oculto">
@@ -58,6 +67,13 @@ import Layout from "../layouts/Layout.astro";
       aviso.className = "aviso error";
     }
 
+    // Enlace de invitación: /ingresar?inv=XXXX prellena el código de invitación
+    const invEnlace = new URLSearchParams(location.search).get("inv");
+    if (invEnlace) {
+      document.getElementById("invitacion").value = invEnlace;
+      document.getElementById("campos-registro").classList.remove("oculto");
+    }
+
     // Si ya hay sesión, directo a donde iba
     const yo = await quienSoy().catch(() => null);
     if (yo) {
@@ -72,7 +88,11 @@ import Layout from "../layouts/Layout.astro";
       try {
         await api("/api/auth/solicitar-codigo", {
           method: "POST",
-          body: { email: inputCorreo.value.trim() },
+          body: {
+            email: inputCorreo.value.trim(),
+            name: document.getElementById("nombre")?.value.trim() ?? "",
+            invite_code: document.getElementById("invitacion")?.value.trim() ?? "",
+          },
         });
         formCorreo.classList.add("oculto");
         formCodigo.classList.remove("oculto");
@@ -80,9 +100,16 @@ import Layout from "../layouts/Layout.astro";
         aviso.textContent = "¡Código enviado! Revisa tu correo (y el spam, por si acaso).";
         inputCodigo.focus();
       } catch (err) {
-        mostrarError(err.message);
+        if (err.status === 403) {
+          // Correo nuevo sin invitación: mostrar campos de registro
+          document.getElementById("campos-registro").classList.remove("oculto");
+          mostrarError(err.message);
+        } else {
+          mostrarError(err.message);
+        }
       } finally {
         btn.disabled = false;
+        btn.textContent = "Recibir código";
       }
     });
 

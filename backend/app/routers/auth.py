@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import get_db
 from ..emailer import send_login_code
-from ..models import LoginCode, utcnow
+from ..models import LoginCode, Player, utcnow
 from ..schemas import CodeRequest, CodeVerify, MeOut
 from ..security import (
     clear_session_cookie,
@@ -21,6 +21,7 @@ from ..security import (
     set_session_cookie,
     verify_code_hash,
 )
+from .participants import get_settings
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -29,13 +30,36 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 def solicitar_codigo(
     datos: CodeRequest, background: BackgroundTasks, db: Session = Depends(get_db)
 ):
-    """Envía un código de 6 dígitos al correo indicado (si está registrado).
+    """Envía un código de 6 dígitos al correo indicado.
 
-    Responde 202 siempre, aunque el correo no exista, para no filtrar qué
-    correos están registrados.
+    Si el correo no está registrado, funciona como registro: exige nombre y
+    un código de invitación válido (el que viaja en el enlace que comparte
+    el admin). Responde 202 aunque el correo no esté invitado, para no
+    filtrar información... salvo cuando falta la invitación, en cuyo caso
+    el frontend muestra los campos de registro.
     """
     email = datos.email.lower()
     player = email_belongs_to_player(db, email)
+
+    if not player:
+        # Registro nuevo: se necesita invitación y nombre
+        s = get_settings(db)
+        if s.draw_done:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "El sorteo ya se realizó; no se pueden aceptar nuevos participantes",
+            )
+        if not datos.invite_code or datos.invite_code != s.invite_code:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Necesitas el código de invitación para registrarte",
+            )
+        if not datos.name.strip():
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Falta tu nombre")
+        player = Player(email=email, name=datos.name.strip())
+        db.add(player)
+        db.commit()
+        db.refresh(player)
 
     # Enfriamiento solo si el último código sigue sin usarse y es reciente:
     # si ya se usó o venció, puede pedirse otro de inmediato.
@@ -54,23 +78,22 @@ def solicitar_codigo(
         )
 
     # Un solo código activo por correo: los anteriores quedan usados
-    if player:
-        for old in db.scalars(
-            select(LoginCode).where(LoginCode.email == email, LoginCode.used.is_(False))
-        ):
-            old.used = True
+    for old in db.scalars(
+        select(LoginCode).where(LoginCode.email == email, LoginCode.used.is_(False))
+    ):
+        old.used = True
 
-        code = generate_code()
-        login_code = LoginCode(
-            email=email,
-            code_hash=hash_code(code),
-            expires_at=utcnow() + timedelta(minutes=settings.code_ttl_minutes),
-        )
-        db.add(login_code)
-        db.commit()
+    code = generate_code()
+    login_code = LoginCode(
+        email=email,
+        code_hash=hash_code(code),
+        expires_at=utcnow() + timedelta(minutes=settings.code_ttl_minutes),
+    )
+    db.add(login_code)
+    db.commit()
 
-        # El envío por SMTP se hace fuera del ciclo de la respuesta
-        background.add_task(send_login_code, email, player.name, code)
+    # El envío por SMTP se hace fuera del ciclo de la respuesta
+    background.add_task(send_login_code, email, player.name, code)
 
     return {"detalle": "Si el correo está registrado, recibirás un código."}
 

@@ -1,5 +1,7 @@
 """Participantes visibles y configuración pública del evento."""
 
+import secrets
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -10,11 +12,20 @@ from ..schemas import ParticipantOut, SettingsOut
 router = APIRouter(prefix="/api/participantes", tags=["participants"])
 
 
+def generar_codigo_invitacion() -> str:
+    """Código corto pero difícil de adivinar, pensado para compartirse en un enlace."""
+    return secrets.token_urlsafe(9)  # ~12 caracteres amigables
+
+
 def get_settings(db: Session) -> Setting:
     row = db.get(Setting, 1)
     if not row:
-        row = Setting(id=1)
+        row = Setting(id=1, invite_code=generar_codigo_invitacion())
         db.add(row)
+        db.commit()
+        db.refresh(row)
+    elif not row.invite_code:
+        row.invite_code = generar_codigo_invitacion()
         db.commit()
         db.refresh(row)
     return row

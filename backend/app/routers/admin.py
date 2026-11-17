@@ -16,12 +16,12 @@ from ..emailer import send_login_code
 from ..models import LoginCode, Player, Setting, utcnow
 from ..schemas import (
     AdminLogin,
+    AdminSettingsOut,
     DrawResultOut,
     PlayerIn,
     PlayerOut,
     PlayerUpdate,
     SettingsIn,
-    SettingsOut,
 )
 from ..security import (
     generate_code,
@@ -29,7 +29,7 @@ from ..security import (
     require_admin,
     set_admin_cookie,
 )
-from .participants import get_settings
+from .participants import generar_codigo_invitacion, get_settings
 
 # --- Login (sin cookie previa) ---
 
@@ -121,18 +121,19 @@ def enviar_codigo(
     return {"detalle": f"Código enviado a {player.email}"}
 
 
-@router.get("/config", response_model=SettingsOut)
+@router.get("/config", response_model=AdminSettingsOut)
 def ver_config(db: Session = Depends(get_db)):
     s = get_settings(db)
-    return SettingsOut(
+    return AdminSettingsOut(
         budget_min=s.budget_min,
         budget_max=s.budget_max,
         event_date=s.event_date,
         draw_done=s.draw_done,
+        invite_code=s.invite_code,
     )
 
 
-@router.put("/config", response_model=SettingsOut)
+@router.put("/config", response_model=AdminSettingsOut)
 def editar_config(datos: SettingsIn, db: Session = Depends(get_db)):
     if datos.budget_min is not None and datos.budget_max is not None:
         if datos.budget_min > datos.budget_max:
@@ -143,11 +144,28 @@ def editar_config(datos: SettingsIn, db: Session = Depends(get_db)):
     s.event_date = datos.event_date
     db.commit()
     db.refresh(s)
-    return SettingsOut(
+    return AdminSettingsOut(
         budget_min=s.budget_min,
         budget_max=s.budget_max,
         event_date=s.event_date,
         draw_done=s.draw_done,
+        invite_code=s.invite_code,
+    )
+
+
+@router.post("/config/invitacion", response_model=AdminSettingsOut)
+def regenerar_invitacion(db: Session = Depends(get_db)):
+    """Invalida el enlace de invitación anterior y genera uno nuevo."""
+    s = get_settings(db)
+    s.invite_code = generar_codigo_invitacion()
+    db.commit()
+    db.refresh(s)
+    return AdminSettingsOut(
+        budget_min=s.budget_min,
+        budget_max=s.budget_max,
+        event_date=s.event_date,
+        draw_done=s.draw_done,
+        invite_code=s.invite_code,
     )
 
 

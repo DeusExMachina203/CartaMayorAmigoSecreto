@@ -82,6 +82,8 @@ class Setting(Base):
     __tablename__ = "settings"
 
     id: Mapped[int] = mapped_column(primary_key=True)  # siempre 1
+    # Código de invitación para registrarse (viaja en el enlace que comparte el admin)
+    invite_code: Mapped[str] = mapped_column(String(50), default="")
     budget_min: Mapped[float | None] = mapped_column(default=None)
     budget_max: Mapped[float | None] = mapped_column(default=None)
     # Fecha límite para unirse / fecha del intercambio

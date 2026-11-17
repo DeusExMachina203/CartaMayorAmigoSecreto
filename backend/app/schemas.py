@@ -9,6 +9,9 @@ from pydantic import BaseModel, EmailStr, Field
 
 class CodeRequest(BaseModel):
     email: EmailStr
+    # Solo para registrarse por primera vez (el correo aún no existe):
+    name: str = Field(default="", max_length=120)
+    invite_code: str = Field(default="", max_length=50)
 
 
 class CodeVerify(BaseModel):
@@ -72,6 +75,12 @@ class SettingsOut(BaseModel):
     budget_max: float | None
     event_date: str
     draw_done: bool
+
+
+class AdminSettingsOut(SettingsOut):
+    """Lo que ve el admin: incluye el código de invitación."""
+
+    invite_code: str
 
 
 # ---------- Amigo asignado ----------
