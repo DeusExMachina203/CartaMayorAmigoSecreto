@@ -16,10 +16,14 @@ import Layout from "../layouts/Layout.astro";
         regalar... sin que nadie sepa nada. Regístrate con el enlace que te
         compartió el organizador, recibe un código en tu correo y listo. 🤫
       </p>
-      <div class="acciones">
-        <a class="btn" href="/ingresar">Ingresar</a>
-        <a class="enlace-mas" href="/participantes">Ver participantes</a>
+      <div class="acciones" id="acciones">
+        <a class="btn oculto" id="btn-ir" href="/mi-lista">Ir a mi lista</a>
+        <a class="btn secundario" href="/participantes">Ver participantes</a>
       </div>
+      <p class="nota-invitacion" id="nota-invitacion">
+        🎄 Para entrar necesitas el <strong>enlace de invitación</strong> que te
+        compartió el organizador. Ábrelo y regístrate con tu nombre y correo.
+      </p>
     </div>
 
     <div class="hero-arte">
@@ -39,6 +43,17 @@ import Layout from "../layouts/Layout.astro";
     </ol>
   </section>
 </Layout>
+
+<script>
+  import { quienSoy } from "../lib/api.js";
+
+  // Si ya hay sesión, la nota de invitación sobra y mostramos el acceso directo
+  const yo = await quienSoy().catch(() => null);
+  if (yo) {
+    document.getElementById("btn-ir")?.classList.remove("oculto");
+    document.getElementById("nota-invitacion")?.classList.add("oculto");
+  }
+</script>
 
 <style>
   .hero {
@@ -81,16 +96,11 @@ import Layout from "../layouts/Layout.astro";
     gap: 1.4rem;
     margin-top: 1.6rem;
   }
-  .enlace-mas {
-    color: var(--titulo);
-    font-family: "Playfair Display", serif;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-decoration: none;
-    border-bottom: 2px solid transparent;
-  }
-  .enlace-mas:hover {
-    border-color: var(--dorado);
+  .nota-invitacion {
+    margin: 1.2rem 0 0;
+    font-size: 0.95rem;
+    color: var(--gris);
+    max-width: 44ch;
   }
   .hero-arte {
     position: relative;

@@ -6,6 +6,7 @@ Uso:
 Envía un correo de prueba a la dirección indicada y reporta si funcionó.
 """
 
+import smtplib
 import sys
 from pathlib import Path
 
@@ -13,6 +14,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import settings  # noqa: E402
 from app.emailer import send_login_code  # noqa: E402
+
+
+class DebugSMTP(smtplib.SMTP):
+    """Activa la conversación SMTP completa para diagnóstico."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.set_debuglevel(2)
 
 
 def main():
@@ -26,6 +35,11 @@ def main():
         print("❌ Falta configuración SMTP en backend/.env:")
         print("   SMTP_HOST, SMTP_USER, SMTP_TOKEN (y SMTP_FROM)")
         sys.exit(1)
+
+    # Conectar con la conversación SMTP visible para diagnóstico
+    import app.emailer as emailer_mod
+
+    emailer_mod.smtplib.SMTP = DebugSMTP
 
     print(f"Servidor : {settings.smtp_host}:{settings.smtp_port}")
     print(f"Usuario  : {settings.smtp_user}")
