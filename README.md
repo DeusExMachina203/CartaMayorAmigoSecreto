@@ -75,6 +75,20 @@ frontend/
 └── astro.config.mjs
 ```
 
+## Desarrollo con los dos servidores
+
+```bash
+./dev.sh     # backend + frontend en local (Ctrl+C detiene ambos)
+```
+
+```bash
+./tunel.sh   # lo mismo + URL pública efímera de Cloudflare (trycloudflare.com)
+./tunel.sh stop   # detener una instancia corriendo
+```
+
+`/tunel.sh` da un enlace público para probar desde el celular; los cambios de
+código se recargan solos (HMR de Astro y `--reload` de uvicorn).
+
 ## Flujo
 
 1. El admin registra a cada amigo (correo + nombre) en el panel `/admin`.

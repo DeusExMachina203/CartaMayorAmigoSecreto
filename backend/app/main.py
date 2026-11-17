@@ -55,3 +55,4 @@ def startup() -> None:
 @app.get("/api/salud", tags=["meta"])
 def salud():
     return {"estado": "ok", "sorteo": "pendiente de Navidad 🎄"}
+
