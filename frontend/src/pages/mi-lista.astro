@@ -39,6 +39,7 @@ import Layout from "../layouts/Layout.astro";
 
       <label for="imagen">URL de imagen (opcional)</label>
       <input id="imagen" type="url" placeholder="https://..." />
+      <img id="preview-imagen" class="preview-img oculto" alt="Vista previa del regalo" />
 
       <label for="notas">Detalles (opcional)</label>
       <textarea id="notas" rows="2" placeholder="Talla, color, marca, dónde conseguirlo..."></textarea>
@@ -52,6 +53,18 @@ import Layout from "../layouts/Layout.astro";
 
   <p id="aviso" class="aviso" role="alert"></p>
 </Layout>
+
+<style>
+  .preview-img {
+    width: 110px;
+    height: 110px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-top: 0.6rem;
+    border: 1px solid var(--borde);
+    background: #fffdf9;
+  }
+</style>
 
 <script>
   import { api, ApiError, quienSoy } from "../lib/api.js";
@@ -132,6 +145,7 @@ import Layout from "../layouts/Layout.astro";
       $("imagen").value = item.image_url;
       $("notas").value = item.notes;
       $("amazon-url").value = item.amazon_url;
+      actualizarPreview();
       window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
     };
     const btnBorrar = document.createElement("button");
@@ -165,6 +179,7 @@ import Layout from "../layouts/Layout.astro";
       const info = await api("/api/mi-lista/enriquecer", { method: "POST", body: { url } });
       if (info.name) $("nombre").value = info.name;
       if (info.image_url) $("imagen").value = info.image_url;
+      actualizarPreview();
       aviso(
         info.name
           ? "¡Datos traídos! Revisa que estén bien antes de guardar."
@@ -201,6 +216,7 @@ import Layout from "../layouts/Layout.astro";
       cancelarEdicion();
       e.target.reset();
       $("amazon-url").value = "";
+      actualizarPreview();
       aviso.className = "aviso ok";
       aviso.textContent = editandoId ? "Cambios guardados." : "¡Regalo agregado!";
       if (!editandoId) aviso.textContent = "¡Regalo agregado!";
@@ -220,4 +236,19 @@ import Layout from "../layouts/Layout.astro";
     aviso.className = "aviso";
   }
   $("btn-cancelar").addEventListener("click", cancelarEdicion);
+
+  // ---------- Vista previa de la imagen ----------
+  function actualizarPreview() {
+    const prev = $("preview-imagen");
+    const url = $("imagen").value.trim();
+    if (!url) {
+      prev.classList.add("oculto");
+      prev.removeAttribute("src");
+      return;
+    }
+    prev.onload = () => prev.classList.remove("oculto");
+    prev.onerror = () => prev.classList.add("oculto"); // URL rota: no mostrar
+    prev.src = url;
+  }
+  $("imagen").addEventListener("input", actualizarPreview);
 </script>
