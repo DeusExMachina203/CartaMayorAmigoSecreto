@@ -1,7 +1,17 @@
 ---
-// Layout base: cabecera con navegación, estilos globales y pie de página.
+// Layout base con la estética navideña elegante: fondo beige, barra lateral
+// verde con la navegación y tipografías serif (títulos) + sans espaciada.
+// En móvil la barra pasa arriba como cinta horizontal.
 const { titulo = "Amigo Secreto" } = Astro.props;
 const ruta = Astro.url.pathname;
+
+const enlaces = [
+  { href: "/", texto: "Inicio", activo: (p: string) => p === "/" },
+  { href: "/participantes", texto: "Participantes", activo: (p: string) => p.startsWith("/participantes") },
+  { href: "/mi-lista", texto: "Mi lista", activo: (p: string) => p.startsWith("/mi-lista") },
+  { href: "/mi-amigo", texto: "Mi amigo", activo: (p: string) => p.startsWith("/mi-amigo") },
+  { href: "/admin", texto: "Admin", activo: (p: string) => p.startsWith("/admin") },
+];
 ---
 
 <!doctype html>
@@ -11,38 +21,54 @@ const ruta = Astro.url.pathname;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{titulo} · Amigo Secreto</title>
     <meta name="description" content="Intercambio de regalos entre amigos 🎁" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Jost:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
-    <header class="cabecera">
-      <a class="logo" href="/">Amigo <span>Secreto</span> 🎁</a>
+    <!-- Barra lateral (desktop) / cinta superior (móvil) -->
+    <aside class="sidebar">
+      <a class="logo" href="/">AMIGO<span>SECRETO</span></a>
+
       <nav>
-        <a href="/" class:list={{ activo: ruta === "/" }}>Inicio</a>
-        <a href="/participantes" class:list={{ activo: ruta === "/participantes/" }}>Participantes</a>
-        <a href="/mi-lista" class:list={{ activo: ruta.startsWith("/mi-lista") }}>Mi lista</a>
-        <a href="/mi-amigo" class:list={{ activo: ruta.startsWith("/mi-amigo") }}>Mi amigo</a>
-        <a href="/admin" class:list={{ activo: ruta.startsWith("/admin") }}>Admin</a>
+        {
+          enlaces.map((e) => (
+            <a href={e.href} class:list={{ activo: e.activo(ruta) }}>
+              {e.texto}
+            </a>
+          ))
+        }
       </nav>
-    </header>
+
+      <a class="ingresar" href="/ingresar">Ingresar</a>
+    </aside>
 
     <main>
       <slot />
     </main>
 
     <footer>
+      <img src="/img/ramita.png" alt="" class="ramita" />
       <p>Hecho con ❤ para el grupo · ¡Feliz Navidad! 🎄</p>
     </footer>
 
     <style is:global>
       :root {
-        --verde: #0e6b3a;
-        --verde-oscuro: #0a4d2a;
-        --rojo: #c0392b;
-        --dorado: #d9a441;
-        --crema: #fdf6ec;
-        --texto: #2d2a26;
-        --gris: #6f6a63;
-        --borde: #e7ddcd;
-        --blanco: #ffffff;
+        --fondo: #cfc7b0;
+        --verde: #4d6e4b;
+        --verde-oscuro: #3d5a3c;
+        --rojo: #b94359;
+        --rojo-oscuro: #a2384d;
+        --titulo: #535353;
+        --texto: #4a463f;
+        --gris: #7d776c;
+        --marfil: #f5f1e6;
+        --borde: #d9d2c2;
+        --dorado: #c9a86a;
       }
       * {
         box-sizing: border-box;
@@ -50,100 +76,152 @@ const ruta = Astro.url.pathname;
       body {
         margin: 0;
         min-height: 100vh;
+        background: var(--fondo);
+        color: var(--texto);
+        font-family: "Jost", system-ui, sans-serif;
+        font-weight: 400;
+        line-height: 1.6;
+      }
+
+      /* ---------- Barra lateral ---------- */
+      .sidebar {
+        position: fixed;
+        inset: 1.4rem auto 1.4rem 1.4rem;
+        width: 215px;
+        background: var(--verde);
+        border-radius: 26px;
         display: flex;
         flex-direction: column;
-        background: var(--crema);
-        color: var(--texto);
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-        line-height: 1.55;
-      }
-      main {
-        flex: 1;
-        width: min(860px, 100% - 2rem);
-        margin-inline: auto;
-        padding-block: 2rem 3rem;
-      }
-      .cabecera {
-        background: var(--verde);
-        color: var(--blanco);
-        padding: 0.9rem 1.5rem;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem 1.5rem;
         align-items: center;
         justify-content: space-between;
-        box-shadow: 0 2px 10px rgb(0 0 0 / 0.15);
+        padding: 2.2rem 1rem 1.8rem;
+        z-index: 10;
+        box-shadow: 0 10px 30px rgb(0 0 0 / 0.12);
       }
       .logo {
-        font-size: 1.25rem;
-        font-weight: 800;
-        color: var(--blanco);
+        font-family: "Playfair Display", serif;
+        font-weight: 700;
+        font-size: 1.05rem;
+        letter-spacing: 0.18em;
+        color: var(--marfil);
         text-decoration: none;
-        letter-spacing: 0.3px;
+        text-align: center;
+        line-height: 1.5;
       }
       .logo span {
+        display: block;
         color: var(--dorado);
+        font-size: 0.95rem;
       }
-      .cabecera nav {
+      .sidebar nav {
         display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
+        flex-direction: column;
+        gap: 1.9rem;
+        text-align: center;
       }
-      .cabecera nav a {
-        color: #eaf7ef;
+      .sidebar nav a {
+        color: #eef0e6;
         text-decoration: none;
-        font-weight: 600;
-        padding: 0.2rem 0.5rem;
-        border-radius: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.22em;
+        font-size: 0.8rem;
+        font-weight: 400;
+        transition: color 0.15s;
       }
-      .cabecera nav a:hover {
-        background: var(--verde-oscuro);
-      }
-      .cabecera nav a.activo {
-        background: var(--verde-oscuro);
+      .sidebar nav a:hover {
         color: var(--dorado);
+      }
+      .sidebar nav a.activo {
+        color: #fff;
+        font-weight: 600;
+      }
+      .sidebar .ingresar {
+        background: var(--rojo);
+        color: #fff;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.65rem 1.6rem;
+        border-radius: 999px;
+      }
+      .sidebar .ingresar:hover {
+        background: var(--rojo-oscuro);
+      }
+
+      /* ---------- Contenido ---------- */
+      main {
+        margin-left: 260px;
+        padding: 2.5rem 2.5rem 3rem;
+        width: calc(100% - 260px);
       }
       footer {
+        margin-left: 260px;
         text-align: center;
         color: var(--gris);
-        padding: 1.2rem;
-        font-size: 0.9rem;
+        padding: 1rem 2rem 1.6rem;
+        font-size: 0.85rem;
+        position: relative;
+      }
+      footer .ramita {
+        position: absolute;
+        left: 1rem;
+        bottom: 0.6rem;
+        width: 46px;
+        opacity: 0.55;
       }
 
       h1 {
-        font-size: 1.9rem;
-        margin: 0 0 0.5rem;
-        color: var(--verde-oscuro);
+        font-family: "Playfair Display", serif;
+        font-weight: 700;
+        font-size: clamp(2rem, 4.5vw, 3.2rem);
+        line-height: 1.12;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--titulo);
+        margin: 0 0 0.6rem;
       }
       h2 {
-        font-size: 1.25rem;
-        margin: 1.5rem 0 0.75rem;
-        color: var(--verde-oscuro);
+        font-family: "Playfair Display", serif;
+        font-size: 1.35rem;
+        letter-spacing: 0.04em;
+        color: var(--titulo);
+        margin: 1.6rem 0 0.75rem;
+      }
+
+      .paso {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--rojo);
+        text-transform: uppercase;
+        letter-spacing: 0.28em;
       }
 
       .tarjeta {
-        background: var(--blanco);
-        border: 1px solid var(--borde);
-        border-radius: 14px;
-        padding: 1.25rem 1.4rem;
-        box-shadow: 0 2px 8px rgb(0 0 0 / 0.05);
+        background: var(--marfil);
+        border-radius: 22px;
+        padding: 1.4rem 1.6rem;
+        box-shadow: 0 8px 24px rgb(83 83 83 / 0.08);
       }
 
       .btn {
         display: inline-block;
         background: var(--rojo);
-        color: var(--blanco);
+        color: #fff;
         border: none;
-        border-radius: 10px;
-        padding: 0.6rem 1.2rem;
-        font-size: 1rem;
-        font-weight: 700;
+        border-radius: 999px;
+        padding: 0.7rem 1.8rem;
+        font-family: "Jost", sans-serif;
+        font-size: 0.95rem;
+        font-weight: 500;
+        letter-spacing: 0.06em;
         cursor: pointer;
         text-decoration: none;
-        transition: transform 0.06s ease, filter 0.15s ease;
+        transition: transform 0.06s ease, background 0.15s ease;
       }
       .btn:hover {
-        filter: brightness(1.08);
+        background: var(--rojo-oscuro);
       }
       .btn:active {
         transform: scale(0.98);
@@ -151,11 +229,17 @@ const ruta = Astro.url.pathname;
       .btn.secundario {
         background: var(--verde);
       }
+      .btn.secundario:hover {
+        background: var(--verde-oscuro);
+      }
       .btn.fantasma {
         background: transparent;
-        color: var(--gris);
-        border: 1px solid var(--borde);
-        font-weight: 600;
+        color: var(--titulo);
+        border: 1px solid #a49d8d;
+        font-weight: 500;
+      }
+      .btn.fantasma:hover {
+        background: rgb(255 255 255 / 0.35);
       }
       .btn:disabled {
         opacity: 0.5;
@@ -164,18 +248,22 @@ const ruta = Astro.url.pathname;
 
       label {
         display: block;
-        font-weight: 600;
-        font-size: 0.9rem;
-        margin: 0.75rem 0 0.25rem;
+        font-weight: 500;
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--gris);
+        margin: 0.9rem 0 0.3rem;
       }
       input,
       textarea {
         width: 100%;
-        padding: 0.55rem 0.7rem;
+        padding: 0.6rem 0.8rem;
         border: 1px solid var(--borde);
-        border-radius: 9px;
+        border-radius: 12px;
         font: inherit;
-        background: #fffdf9;
+        background: #fbf9f2;
+        color: var(--texto);
       }
       input:focus,
       textarea:focus {
@@ -184,34 +272,68 @@ const ruta = Astro.url.pathname;
       }
 
       .aviso {
-        border-radius: 10px;
+        border-radius: 12px;
         padding: 0.7rem 1rem;
         margin: 0.75rem 0;
-        font-weight: 600;
+        font-weight: 500;
         display: none;
       }
       .aviso.error {
         display: block;
-        background: #fdecea;
-        color: var(--rojo);
-        border: 1px solid #f5c6c0;
+        background: #f6e3e3;
+        color: var(--rojo-oscuro);
+        border: 1px solid #e3bcbc;
       }
       .aviso.ok {
         display: block;
-        background: #e8f5ee;
+        background: #e4ecdd;
         color: var(--verde-oscuro);
-        border: 1px solid #bfe3cf;
+        border: 1px solid #bfd0b4;
       }
 
-      .paso {
-        font-size: 0.85rem;
-        font-weight: 800;
-        color: var(--dorado);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-      }
       .oculto {
-        display: none;
+        display: none !important;
+      }
+
+      /* ---------- Móvil: cinta superior ---------- */
+      @media (max-width: 860px) {
+        .sidebar {
+          inset: 0 0 auto 0;
+          width: 100%;
+          border-radius: 0;
+          flex-direction: row;
+          flex-wrap: wrap;
+          gap: 0.4rem 1rem;
+          padding: 0.7rem 1rem;
+          align-items: center;
+        }
+        .logo {
+          font-size: 0.9rem;
+        }
+        .logo span {
+          display: inline;
+          margin-left: 0.3rem;
+        }
+        .sidebar nav {
+          flex-direction: row;
+          flex-wrap: wrap;
+          gap: 0.9rem;
+          margin-left: auto;
+        }
+        .sidebar nav a {
+          font-size: 0.7rem;
+        }
+        .sidebar .ingresar {
+          display: none;
+        }
+        main {
+          margin: 0;
+          width: 100%;
+          padding: 1.4rem 1.1rem 2rem;
+        }
+        footer {
+          margin: 0;
+        }
       }
     </style>
   </body>

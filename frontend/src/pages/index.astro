@@ -3,18 +3,32 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout titulo="Inicio">
-  <section style="text-align:center; padding: 2.5rem 0 2rem;">
-    <p class="paso">Navidades de diciembre</p>
-    <h1 style="font-size:2.6rem; margin-bottom:0.5rem;">Amigo Secreto 🎁</h1>
-    <p style="font-size:1.15rem; color:var(--gris); max-width:520px; margin:0 auto 1.5rem;">
-      Arma tu lista de deseos, entra al sorteo y descubre a quién le toca
-      regalar... sin que nadie sepa nada. 🤫
-    </p>
-    <a class="btn" href="/ingresar">Entrar con mi correo</a>
-    <a class="btn fantasma" href="/participantes">Ver participantes</a>
+  <section class="hero">
+    <div class="hero-texto">
+      <h1>
+        Amigo
+        <img src="/img/hoja.png" alt="" class="hoja" />
+        <br />Secreto
+      </h1>
+      <p class="subtitulo">Una Navidad llena de sorpresas</p>
+      <p class="descripcion">
+        Arma tu lista de deseos, entra al sorteo y descubre a quién le toca
+        regalar... sin que nadie sepa nada. Regístrate con el enlace que te
+        compartió el organizador, recibe un código en tu correo y listo. 🤫
+      </p>
+      <div class="acciones">
+        <a class="btn" href="/ingresar">Ingresar</a>
+        <a class="enlace-mas" href="/participantes">Ver participantes</a>
+      </div>
+    </div>
+
+    <div class="hero-arte">
+      <img src="/img/hero.png" alt="Muñeco de nieve sobre un trineo blanco" />
+      <img src="/img/bola.png" alt="" class="bola" />
+    </div>
   </section>
 
-  <section class="tarjeta">
+  <section class="tarjeta como">
     <h2 style="margin-top:0;">¿Cómo funciona?</h2>
     <ol style="margin:0; padding-left:1.25rem; display:grid; gap:0.6rem;">
       <li><strong>Recibes la invitación:</strong> el organizador comparte un enlace con el código de invitación.</li>
@@ -25,3 +39,97 @@ import Layout from "../layouts/Layout.astro";
     </ol>
   </section>
 </Layout>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(300px, 1fr) minmax(0, 1.1fr);
+    gap: 2rem;
+    align-items: center;
+    min-height: 62vh;
+  }
+  .hero-texto h1 {
+    font-size: clamp(2.6rem, 5.5vw, 4.3rem);
+    position: relative;
+    display: inline-block;
+  }
+  .hoja {
+    width: 78px;
+    margin-left: 0.8rem;
+    vertical-align: baseline;
+    transform: translateY(-0.4rem) rotate(-8deg);
+  }
+  .subtitulo {
+    margin: 0.4rem 0 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    font-weight: 400;
+    font-size: 1.02rem;
+    color: var(--titulo);
+  }
+  .descripcion {
+    max-width: 46ch;
+    color: var(--gris);
+    text-transform: uppercase;
+    font-size: 0.88rem;
+    letter-spacing: 0.08em;
+    line-height: 1.9;
+  }
+  .acciones {
+    display: flex;
+    align-items: center;
+    gap: 1.4rem;
+    margin-top: 1.6rem;
+  }
+  .enlace-mas {
+    color: var(--titulo);
+    font-family: "Playfair Display", serif;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+  }
+  .enlace-mas:hover {
+    border-color: var(--dorado);
+  }
+  .hero-arte {
+    position: relative;
+    align-self: stretch;
+  }
+  .hero-arte img:first-child {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .bola {
+    position: absolute;
+    left: -4.6rem;
+    bottom: 1.8rem;
+    width: 88px;
+    filter: drop-shadow(0 10px 14px rgb(0 0 0 / 0.18));
+  }
+  .como {
+    margin-top: 2.5rem;
+  }
+
+  @media (max-width: 1000px) {
+    .hero {
+      grid-template-columns: 1fr;
+      min-height: 0;
+    }
+    .hero-arte {
+      max-width: 520px;
+      margin-inline: auto;
+    }
+    .bola {
+      left: -2.4rem;
+      bottom: 0.5rem;
+    }
+    .descripcion {
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+  }
+</style>
