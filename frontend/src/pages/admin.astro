@@ -1,0 +1,224 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout titulo="Administración">
+  <p class="paso">Zona del organizador</p>
+  <h1 style="margin-top:0.2rem;">Panel de administración 🔐</h1>
+
+  <!-- Login -->
+  <form id="form-login" class="tarjeta" style="max-width:420px; margin-top:1rem;">
+    <label for="password">Contraseña de administrador</label>
+    <input id="password" type="password" required autocomplete="current-password" />
+    <button class="btn" style="margin-top:1rem;" type="submit">Entrar</button>
+  </form>
+
+  <div id="panel" class="oculto">
+    <!-- Configuración -->
+    <section class="tarjeta" style="margin-top:1rem;">
+      <h2 style="margin-top:0;">Configuración del evento</h2>
+      <form id="form-config" style="display:flex; gap:1rem; flex-wrap:wrap;">
+        <div style="flex:1; min-width:120px;">
+          <label for="bmin">Presupuesto mín. (S/)</label>
+          <input id="bmin" type="number" min="0" step="0.5" />
+        </div>
+        <div style="flex:1; min-width:120px;">
+          <label for="bmax">Presupuesto máx. (S/)</label>
+          <input id="bmax" type="number" min="0" step="0.5" />
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <label for="fdate">Fecha del intercambio</label>
+          <input id="fdate" type="date" />
+        </div>
+      </form>
+      <button class="btn secundario" id="btn-config" style="margin-top:1rem;" type="button">
+        Guardar configuración
+      </button>
+    </section>
+
+    <!-- Participantes -->
+    <section class="tarjeta" style="margin-top:1rem;">
+      <h2 style="margin-top:0;">Participantes</h2>
+      <form id="form-participante" style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:end;">
+        <div style="flex:1; min-width:160px;">
+          <label for="pnombre">Nombre</label>
+          <input id="pnombre" required maxlength="120" placeholder="Ej.: Diana Quispe" />
+        </div>
+        <div style="flex:1; min-width:200px;">
+          <label for="pcorreo">Correo</label>
+          <input id="pcorreo" type="email" required placeholder="diana@ejemplo.com" />
+        </div>
+        <button class="btn" type="submit">Agregar</button>
+      </form>
+      <div id="tabla-participantes" style="margin-top:1rem; display:grid; gap:0.5rem;"></div>
+    </section>
+
+    <!-- Sorteo -->
+    <section class="tarjeta" style="margin-top:1rem; text-align:center;">
+      <h2 style="margin-top:0;">Sorteo 🎲</h2>
+      <p id="estado-sorteo" style="color:var(--gris); margin-top:0;"></p>
+      <button class="btn" id="btn-sorteo" type="button">Realizar sorteo</button>
+      <button class="btn fantasma oculto" id="btn-deshacer" type="button">Deshacer sorteo</button>
+    </section>
+
+    <p style="text-align:right; margin-top:1.5rem;">
+      <button class="btn fantasma" id="btn-salir" type="button">Salir del panel</button>
+    </p>
+  </div>
+
+  <p id="aviso" class="aviso" role="alert"></p>
+</Layout>
+
+<script>
+  import { api } from "../lib/api.js";
+
+  const $ = (id) => document.getElementById(id);
+
+  function aviso(msg, tipo = "error") {
+    const el = $("aviso");
+    el.textContent = msg;
+    el.className = `aviso ${tipo}`;
+  }
+
+  async function entrar() {
+    $("form-login").classList.add("oculto");
+    $("panel").classList.remove("oculto");
+    await Promise.all([cargarConfig(), cargarParticipantes(), cargarSorteo()]);
+  }
+
+  // Login
+  $("form-login").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      await api("/api/admin/login", {
+        method: "POST",
+        body: { password: $("password").value },
+      });
+      await entrar();
+    } catch (err) {
+      aviso(err.message);
+    }
+  });
+
+  $("btn-salir").addEventListener("click", async () => {
+    await api("/api/admin/salir", { method: "POST" }).catch(() => {});
+    location.reload();
+  });
+
+  // Configuración
+  async function cargarConfig() {
+    const cfg = await api("/api/admin/config");
+    $("bmin").value = cfg.budget_min ?? "";
+    $("bmax").value = cfg.budget_max ?? "";
+    $("fdate").value = cfg.event_date || "";
+    $("estado-sorteo").textContent = cfg.draw_done
+      ? "El sorteo ya se realizó 🎉"
+      : "Aún no se ha realizado";
+    $("btn-sorteo").disabled = cfg.draw_done;
+    $("btn-deshacer").classList.toggle("oculto", !cfg.draw_done);
+  }
+
+  $("btn-config").addEventListener("click", async () => {
+    try {
+      await api("/api/admin/config", {
+        method: "PUT",
+        body: {
+          budget_min: $("bmin").value === "" ? null : Number($("bmin").value),
+          budget_max: $("bmax").value === "" ? null : Number($("bmax").value),
+          event_date: $("fdate").value,
+        },
+      });
+      aviso("Configuración guardada.", "ok");
+    } catch (err) {
+      aviso(err.message);
+    }
+  });
+
+  // Participantes
+  async function cargarParticipantes() {
+    const participantes = await api("/api/admin/participantes");
+    const tabla = $("tabla-participantes");
+    tabla.replaceChildren(
+      ...participantes.map((p) => {
+        const fila = document.createElement("div");
+        fila.style.cssText =
+          "display:flex; justify-content:space-between; align-items:center; gap:0.6rem; padding:0.4rem 0; border-bottom:1px solid var(--borde);";
+        fila.innerHTML = `<span><strong>${p.name}</strong> <span style="color:var(--gris); font-size:0.85rem;">${p.email}</span></span>`;
+        const acciones = document.createElement("div");
+        acciones.style.cssText = "display:flex; gap:0.4rem;";
+        const btnCodigo = document.createElement("button");
+        btnCodigo.className = "btn fantasma";
+        btnCodigo.textContent = "Enviar código";
+        btnCodigo.onclick = async () => {
+          btnCodigo.disabled = true;
+          try {
+            await api(`/api/admin/participantes/${p.id}/codigo`, { method: "POST" });
+            aviso(`Código enviado a ${p.email}.`, "ok");
+          } catch (err) {
+            aviso(err.message);
+          } finally {
+            btnCodigo.disabled = false;
+          }
+        };
+        const btnBorrar = document.createElement("button");
+        btnBorrar.className = "btn fantasma";
+        btnBorrar.textContent = "Quitar";
+        btnBorrar.onclick = async () => {
+          if (!confirm(`¿Quitar a ${p.name} del intercambio?`)) return;
+          try {
+            await api(`/api/admin/participantes/${p.id}`, { method: "DELETE" });
+            cargarParticipantes();
+          } catch (err) {
+            aviso(err.message);
+          }
+        };
+        acciones.append(btnCodigo, btnBorrar);
+        fila.append(acciones);
+        return fila;
+      })
+    );
+  }
+
+  $("form-participante").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      await api("/api/admin/participantes", {
+        method: "POST",
+        body: { name: $("pnombre").value.trim(), email: $("pcorreo").value.trim() },
+      });
+      $("pnombre").value = "";
+      $("pcorreo").value = "";
+      aviso("Participante agregado.", "ok");
+      cargarParticipantes();
+    } catch (err) {
+      aviso(err.message);
+    }
+  });
+
+  // Sorteo
+  $("btn-sorteo").addEventListener("click", async () => {
+    if (!confirm("¿Realizar el sorteo ahora? Ya no se podrá cambiar la lista de participantes sin deshacerlo.")) return;
+    try {
+      const r = await api("/api/admin/sorteo", { method: "POST" });
+      aviso(`¡Sorteo realizado! ${r.total} participantes asignados. 🎉`, "ok");
+      cargarSorteo();
+    } catch (err) {
+      aviso(err.message);
+    }
+  });
+
+  $("btn-deshacer").addEventListener("click", async () => {
+    if (!confirm("¿Deshacer el sorteo? Las asignaciones se borrarán.")) return;
+    try {
+      await api("/api/admin/sorteo", { method: "DELETE" });
+      aviso("Sorteo deshecho. Puedes ajustar participantes y repetirlo.", "ok");
+      cargarSorteo();
+    } catch (err) {
+      aviso(err.message);
+    }
+  });
+
+  function cargarSorteo() {
+    return cargarConfig().catch((err) => aviso(err.message));
+  }
+</script>

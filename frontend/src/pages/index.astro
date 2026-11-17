@@ -1,0 +1,27 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout titulo="Inicio">
+  <section style="text-align:center; padding: 2.5rem 0 2rem;">
+    <p class="paso">Navidades de diciembre</p>
+    <h1 style="font-size:2.6rem; margin-bottom:0.5rem;">Amigo Secreto 🎁</h1>
+    <p style="font-size:1.15rem; color:var(--gris); max-width:520px; margin:0 auto 1.5rem;">
+      Arma tu lista de deseos, entra al sorteo y descubre a quién le toca
+      regalar... sin que nadie sepa nada. 🤫
+    </p>
+    <a class="btn" href="/ingresar">Entrar con mi correo</a>
+    <a class="btn fantasma" href="/participantes">Ver participantes</a>
+  </section>
+
+  <section class="tarjeta">
+    <h2 style="margin-top:0;">¿Cómo funciona?</h2>
+    <ol style="margin:0; padding-left:1.25rem; display:grid; gap:0.6rem;">
+      <li><strong>Te registramos:</strong> el organizador agrega tu correo a la lista de participantes.</li>
+      <li><strong>Recibes un código:</strong> al escribir tu correo te enviamos un código de 6 dígitos. Sin contraseñas.</li>
+      <li><strong>Armas tu lista:</strong> agrega los regalos que te gustaría recibir, con fotos y enlaces.</li>
+      <li><strong>El sorteo:</strong> en la fecha acordada, cada uno descubre a quién le toca darle un regalo.</li>
+      <li><strong>Sorpréndelo:</strong> miras su lista, eliges un regalo dentro del presupuesto... y a esperar la fecha. 🎄</li>
+    </ol>
+  </section>
+</Layout>

@@ -1,0 +1,115 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout titulo="Mi amigo secreto">
+  <p class="paso">Solo para tus ojos 🤫</p>
+  <h1 style="margin-top:0.2rem;">Tu amigo secreto</h1>
+
+  <div id="contenido" class="oculto">
+    <section class="tarjeta" id="tarjeta-amigo" style="text-align:center;">
+      <p style="margin:0; color:var(--gris);">Le regalas a</p>
+      <p id="nombre-amigo" style="font-size:2rem; font-weight:800; color:var(--verde-oscuro); margin:0.2rem 0 0.8rem;"></p>
+      <p id="ayuda-presupuesto" style="margin:0; color:var(--gris);"></p>
+    </section>
+
+    <h2>Su lista de deseos</h2>
+    <div id="items" style="display:grid; gap:0.9rem;"></div>
+    <p id="sin-lista" class="aviso"></p>
+  </div>
+
+  <div id="sin-sorteo" class="tarjeta oculto" style="text-align:center; margin-top:1rem;">
+    <p style="font-size:2.5rem; margin:0.5rem 0;">🎅</p>
+    <p style="font-weight:700; font-size:1.15rem; margin:0;">El sorteo aún no se ha realizado</p>
+    <p style="color:var(--gris); margin:0.4rem 0 0;">
+      Vuelve cuando el organizador lo anuncie. Mientras tanto,
+      <a href="/mi-lista">mejora tu lista de deseos</a>. 😉
+    </p>
+  </div>
+
+  <p id="aviso" class="aviso" role="alert"></p>
+</Layout>
+
+<script>
+  import { api, quienSoy } from "../lib/api.js";
+
+  const $ = (id) => document.getElementById(id);
+
+  const yo = await quienSoy().catch(() => null);
+  if (!yo) {
+    location.replace("/ingresar?volver=/mi-amigo");
+  } else {
+    cargar();
+  }
+
+  async function cargar() {
+    let amigo, config;
+    try {
+      [amigo, config] = await Promise.all([api("/api/mi-amigo"), api("/api/participantes/config")]);
+    } catch (err) {
+      if (err.status === 404) {
+        $("sin-sorteo").classList.remove("oculto");
+        document.body.dataset.cargado = "1";
+        return;
+      }
+      const avisoEl = $("aviso");
+      avisoEl.textContent = err.message;
+      avisoEl.className = "aviso error";
+      return;
+    }
+
+    $("nombre-amigo").textContent = amigo.name;
+    if (config.budget_min || config.budget_max) {
+      $("ayuda-presupuesto").textContent = `Presupuesto sugerido: ${config.budget_min ?? 0} - ${config.budget_max ?? "∞"} soles`;
+    }
+    if (config.event_date) {
+      $("ayuda-presupuesto").textContent += ` · Intercambio: ${config.event_date}`;
+    }
+
+    $("sin-lista").style.display = amigo.wishlist.length ? "none" : "block";
+    $("sin-lista").className = "aviso ok";
+    $("sin-lista").textContent =
+      "Todavía no ha agregado nada a su lista. ¡Paciencia, o consúltale sus gustos con sutileza! 😏";
+
+    $("items").replaceChildren(
+      ...amigo.wishlist.map((item) => {
+        const art = document.createElement("article");
+        art.className = "tarjeta";
+        art.style.display = "flex";
+        art.style.gap = "1rem";
+        art.style.alignItems = "flex-start";
+
+        const img = document.createElement("img");
+        img.alt = item.name;
+        img.style.cssText =
+          "width:86px;height:86px;object-fit:cover;border-radius:10px;background:var(--crema);flex-shrink:0;";
+        if (item.image_url) img.src = item.image_url;
+        img.onerror = () => {
+          img.src =
+            "data:image/svg+xml," +
+            encodeURIComponent(
+              `<svg xmlns="http://www.w3.org/2000/svg" width="86" height="86"><rect width="86" height="86" rx="10" fill="#f3e9d8"/><text x="43" y="55" font-size="36" text-anchor="middle">🎁</text></svg>`
+            );
+        };
+        if (!item.image_url) img.dispatchEvent(new Event("error"));
+
+        const cuerpo = document.createElement("div");
+        cuerpo.style.flex = "1";
+        cuerpo.innerHTML = `
+          <strong>${item.name}</strong>
+          ${item.price_hint ? `<span style="color:var(--verde); font-weight:700;"> · ${item.price_hint}</span>` : ""}
+          ${item.notes ? `<p style="margin:0.3rem 0 0; color:var(--gris); font-size:0.95rem;">${item.notes}</p>` : ""}
+          ${
+            item.amazon_url
+              ? `<a href="${item.amazon_url}" target="_blank" rel="noopener noreferrer" style="font-size:0.9rem;">Ver en Amazon ↗</a>`
+              : ""
+          }
+        `;
+        art.append(img, cuerpo);
+        return art;
+      })
+    );
+
+    $("contenido").classList.remove("oculto");
+  }
+</script>

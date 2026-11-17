@@ -1,0 +1,74 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout titulo="Participantes">
+  <p class="paso">El grupo</p>
+  <h1 style="margin-top:0.2rem;">Participantes 🎄</h1>
+
+  <section class="tarjeta" style="margin-top:1rem; display:flex; flex-wrap:wrap; gap:1.5rem;">
+    <div>
+      <p style="margin:0; color:var(--gris); font-size:0.85rem;">PRESUPUESTO</p>
+      <p id="presupuesto" style="margin:0; font-weight:800; font-size:1.3rem; color:var(--verde-oscuro);">—</p>
+    </div>
+    <div>
+      <p style="margin:0; color:var(--gris); font-size:0.85rem;">FECHA DEL INTERCAMBIO</p>
+      <p id="fecha" style="margin:0; font-weight:800; font-size:1.3rem; color:var(--verde-oscuro);">—</p>
+    </div>
+    <div>
+      <p style="margin:0; color:var(--gris); font-size:0.85rem;">SORTEO</p>
+      <p id="estado-sorteo" style="margin:0; font-weight:800; font-size:1.3rem; color:var(--verde-oscuro);">—</p>
+    </div>
+  </section>
+
+  <h2>¿Quién viene?</h2>
+  <div id="lista" class="tarjeta" style="display:grid; gap:0.5rem;"></div>
+  <p id="aviso" class="aviso" role="alert"></p>
+</Layout>
+
+<script>
+  import { api } from "../lib/api.js";
+
+  const $ = (id) => document.getElementById(id);
+
+  try {
+    const [participantes, config] = await Promise.all([
+      api("/api/participantes"),
+      api("/api/participantes/config"),
+    ]);
+
+    if (config.budget_min != null || config.budget_max != null) {
+      $("presupuesto").textContent = `S/ ${config.budget_min ?? 0} - S/ ${config.budget_max ?? "∞"}`;
+    } else {
+      $("presupuesto").textContent = "Por definir";
+    }
+
+    if (config.event_date) {
+      const [y, m, d] = config.event_date.split("-");
+      $("fecha").textContent = `${d}/${m}/${y}`;
+    } else {
+      $("fecha").textContent = "Por definir";
+    }
+
+    $("estado-sorteo").textContent = config.draw_done ? "¡Hecho! 🎉" : "Pendiente";
+
+    const lista = $("lista");
+    for (const p of participantes) {
+      const fila = document.createElement("div");
+      fila.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:0.35rem 0;";
+      const nombre = document.createElement("span");
+      nombre.textContent = p.name;
+      const estado = document.createElement("span");
+      estado.textContent = p.confirmed ? "✅ lista lista" : "⏳ preparando la suya";
+      estado.style.cssText = "font-size:0.85rem; color:var(--gris);";
+      fila.append(nombre, estado);
+      lista.append(fila);
+    }
+    if (!participantes.length) {
+      lista.textContent = "Aún no hay participantes registrados.";
+    }
+  } catch (err) {
+    $("aviso").textContent = `No se pudo cargar: ${err.message}`;
+    $("aviso").className = "aviso error";
+  }
+</script>

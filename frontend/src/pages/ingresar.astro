@@ -1,0 +1,106 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout titulo="Ingresar">
+  <div class="tarjeta" style="max-width:460px; margin-inline:auto;">
+    <p class="paso">Paso 1 de 2</p>
+    <h1 style="margin-top:0.2rem;">Ingresa con tu correo</h1>
+
+    <form id="form-correo">
+      <label for="correo">Correo electrónico</label>
+      <input
+        id="correo"
+        name="correo"
+        type="email"
+        required
+        placeholder="tucorreo@ejemplo.com"
+        autocomplete="email"
+      />
+      <p style="margin:0.6rem 0 0; font-size:0.9rem; color:var(--gris);">
+        Debe ser el correo con el que te registró el organizador.
+      </p>
+      <button class="btn" style="margin-top:1rem;" type="submit">Recibir código</button>
+    </form>
+
+    <form id="form-codigo" class="oculto">
+      <p class="paso">Paso 2 de 2</p>
+      <label for="codigo">Código de 6 dígitos</label>
+      <input
+        id="codigo"
+        name="codigo"
+        inputmode="numeric"
+        pattern="\d{6}"
+        maxlength="6"
+        required
+        placeholder="••••••"
+        autocomplete="one-time-code"
+      />
+      <button class="btn" style="margin-top:1rem;" type="submit">Entrar</button>
+    </form>
+
+    <p id="aviso" class="aviso" role="alert"></p>
+  </div>
+
+  <script>
+    import { api, quienSoy } from "../lib/api.js";
+
+    const aviso = document.getElementById("aviso");
+    const formCorreo = document.getElementById("form-correo");
+    const formCodigo = document.getElementById("form-codigo");
+    const inputCorreo = document.getElementById("correo");
+    const inputCodigo = document.getElementById("codigo");
+
+    const volverA = new URLSearchParams(location.search).get("volver") || "/mi-lista";
+
+    function mostrarError(mensaje) {
+      aviso.textContent = mensaje;
+      aviso.className = "aviso error";
+    }
+
+    // Si ya hay sesión, directo a donde iba
+    const yo = await quienSoy().catch(() => null);
+    if (yo) {
+      location.replace(volverA);
+    }
+
+    formCorreo.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      aviso.className = "aviso";
+      const btn = formCorreo.querySelector("button");
+      btn.disabled = true;
+      try {
+        await api("/api/auth/solicitar-codigo", {
+          method: "POST",
+          body: { email: inputCorreo.value.trim() },
+        });
+        formCorreo.classList.add("oculto");
+        formCodigo.classList.remove("oculto");
+        aviso.className = "aviso ok";
+        aviso.textContent = "¡Código enviado! Revisa tu correo (y el spam, por si acaso).";
+        inputCodigo.focus();
+      } catch (err) {
+        mostrarError(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    formCodigo.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      aviso.className = "aviso";
+      const btn = formCodigo.querySelector("button");
+      btn.disabled = true;
+      try {
+        await api("/api/auth/verificar", {
+          method: "POST",
+          body: { email: inputCorreo.value.trim(), code: inputCodigo.value.trim() },
+        });
+        location.replace(volverA);
+      } catch (err) {
+        mostrarError(err.message);
+        btn.disabled = false;
+      }
+    });
+  </script>
+</Layout>

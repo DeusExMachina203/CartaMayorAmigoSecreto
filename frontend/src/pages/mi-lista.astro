@@ -1,0 +1,224 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout titulo="Mi lista de deseos">
+  <p class="paso">Tu lista de deseos</p>
+  <h1 style="margin-top:0.2rem;">Mi lista 📝</h1>
+  <p id="saludo" style="color:var(--gris); margin-top:0;"></p>
+
+  <div id="contenedor-lista">
+    <div id="items" style="display:grid; gap:0.9rem;"></div>
+    <p id="vacio" style="color:var(--gris);">
+      Aún no tienes regalos en tu lista. ¡Agrega algunos para darle pistas a tu
+      amigo secreto! 😉
+    </p>
+  </div>
+
+  <section class="tarjeta" style="margin-top:1.5rem;">
+    <h2 id="titulo-form" style="margin-top:0;">Agregar un regalo</h2>
+
+    <div class="campo-url">
+      <label for="amazon-url">Enlace de Amazon (opcional)</label>
+      <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+        <input id="amazon-url" type="url" placeholder="https://www.amazon.com/-/dp/..." />
+        <button type="button" id="btn-autocompletar" class="btn secundario">✨ Autocompletar</button>
+      </div>
+      <p style="margin:0.4rem 0 0; font-size:0.85rem; color:var(--gris);">
+        Intentamos traer el nombre y la foto automáticamente. Si no funciona,
+        complétalo a mano. También puedes agregar regalos de otras tiendas o
+        solo ideas.
+      </p>
+    </div>
+
+    <form id="form-item">
+      <label for="nombre">Regalo *</label>
+      <input id="nombre" required maxlength="255" placeholder="Ej.: Libro de recetas peruanas" />
+
+      <label for="precio">Precio de referencia (opcional)</label>
+      <input id="precio" maxlength="50" placeholder="Ej.: S/ 45" />
+
+      <label for="imagen">URL de imagen (opcional)</label>
+      <input id="imagen" type="url" placeholder="https://..." />
+
+      <label for="notas">Detalles (opcional)</label>
+      <textarea id="notas" rows="2" placeholder="Talla, color, marca, dónde conseguirlo..."></textarea>
+
+      <div style="display:flex; gap:0.6rem; margin-top:1rem;">
+        <button class="btn" type="submit" id="btn-guardar">Agregar</button>
+        <button class="btn fantasma oculto" type="button" id="btn-cancelar">Cancelar</button>
+      </div>
+    </form>
+  </section>
+
+  <p id="aviso" class="aviso" role="alert"></p>
+</Layout>
+
+<script>
+  import { api, ApiError, quienSoy } from "../lib/api.js";
+
+  const $ = (id) => document.getElementById(id);
+
+  const yo = await quienSoy().catch(() => null);
+  if (!yo) {
+    location.replace("/ingresar?volver=/mi-lista");
+  } else {
+    $("saludo").textContent = `Hola, ${yo.name}. Estos son los regalos que verá quien te regale:`;
+    cargar();
+  }
+
+  let editandoId = null;
+
+  function aviso(msg, tipo = "error") {
+    const el = $("aviso");
+    el.textContent = msg;
+    el.className = `aviso ${tipo}`;
+  }
+
+  async function cargar() {
+    try {
+      const items = await api("/api/mi-lista");
+      $("vacio").style.display = items.length ? "none" : "";
+      $("items").replaceChildren(...items.map(tarjetaItem));
+    } catch (err) {
+      aviso(err.message);
+    }
+  }
+
+  function tarjetaItem(item) {
+    const art = document.createElement("article");
+    art.className = "tarjeta";
+    art.style.display = "flex";
+    art.style.gap = "1rem";
+    art.style.alignItems = "flex-start";
+
+    const img = document.createElement("img");
+    img.src = item.image_url || "/favicon-placeholder.svg";
+    img.alt = item.name;
+    img.style.cssText =
+      "width:86px;height:86px;object-fit:cover;border-radius:10px;background:var(--crema);flex-shrink:0;";
+    img.onerror = () => {
+      img.src =
+        "data:image/svg+xml," +
+        encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="86" height="86"><rect width="86" height="86" rx="10" fill="#f3e9d8"/><text x="43" y="55" font-size="36" text-anchor="middle">🎁</text></svg>`
+        );
+    };
+
+    const cuerpo = document.createElement("div");
+    cuerpo.style.flex = "1";
+    cuerpo.innerHTML = `
+      <strong>${item.name}</strong>
+      ${item.price_hint ? `<span style="color:var(--verde); font-weight:700;"> · ${item.price_hint}</span>` : ""}
+      ${item.notes ? `<p style="margin:0.3rem 0 0; color:var(--gris); font-size:0.95rem;">${item.notes}</p>` : ""}
+      ${
+        item.amazon_url
+          ? `<a href="${item.amazon_url}" target="_blank" rel="noopener noreferrer" style="font-size:0.9rem;">Ver en Amazon ↗</a>`
+          : ""
+      }
+    `;
+
+    const acciones = document.createElement("div");
+    acciones.style.cssText = "display:flex; flex-direction:column; gap:0.4rem;";
+    const btnEditar = document.createElement("button");
+    btnEditar.className = "btn fantasma";
+    btnEditar.textContent = "Editar";
+    btnEditar.onclick = () => {
+      editandoId = item.id;
+      $("titulo-form").textContent = "Editar regalo";
+      $("btn-guardar").textContent = "Guardar cambios";
+      $("btn-cancelar").classList.remove("oculto");
+      $("nombre").value = item.name;
+      $("precio").value = item.price_hint;
+      $("imagen").value = item.image_url;
+      $("notas").value = item.notes;
+      $("amazon-url").value = item.amazon_url;
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    };
+    const btnBorrar = document.createElement("button");
+    btnBorrar.className = "btn fantasma";
+    btnBorrar.textContent = "Quitar";
+    btnBorrar.onclick = async () => {
+      if (!confirm(`¿Quitar "${item.name}" de tu lista?`)) return;
+      try {
+        await api(`/api/mi-lista/${item.id}`, { method: "DELETE" });
+        cargar();
+      } catch (err) {
+        aviso(err.message);
+      }
+    };
+    acciones.append(btnEditar, btnBorrar);
+    art.append(img, cuerpo, acciones);
+    return art;
+  }
+
+  // Autocompletar desde Amazon
+  $("btn-autocompletar").addEventListener("click", async () => {
+    const url = $("amazon-url").value.trim();
+    if (!url) {
+      aviso("Pega primero un enlace de Amazon.");
+      return;
+    }
+    const btn = $("btn-autocompletar");
+    btn.disabled = true;
+    btn.textContent = "Buscando...";
+    try {
+      const info = await api("/api/mi-lista/enriquecer", { method: "POST", body: { url } });
+      if (info.name) $("nombre").value = info.name;
+      if (info.image_url) $("imagen").value = info.image_url;
+      aviso(
+        info.name
+          ? "¡Datos traídos! Revisa que estén bien antes de guardar."
+          : "No pudimos leer el producto automáticamente; complétalo a mano."
+      );
+      aviso.className = `aviso ${info.name ? "ok" : "error"}`;
+    } catch (err) {
+      aviso(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "✨ Autocompletar";
+    }
+  });
+
+  // Guardar (crear o editar)
+  $("form-item").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const cuerpo = {
+      name: $("nombre").value.trim(),
+      price_hint: $("precio").value.trim(),
+      image_url: $("imagen").value.trim(),
+      notes: $("notas").value.trim(),
+      amazon_url: $("amazon-url").value.trim(),
+    };
+    if (!cuerpo.name) return;
+    const btn = $("btn-guardar");
+    btn.disabled = true;
+    try {
+      if (editandoId) {
+        await api(`/api/mi-lista/${editandoId}`, { method: "PATCH", body: cuerpo });
+      } else {
+        await api("/api/mi-lista", { method: "POST", body: cuerpo });
+      }
+      cancelarEdicion();
+      e.target.reset();
+      $("amazon-url").value = "";
+      aviso.className = "aviso ok";
+      aviso.textContent = editandoId ? "Cambios guardados." : "¡Regalo agregado!";
+      if (!editandoId) aviso.textContent = "¡Regalo agregado!";
+      cargar();
+    } catch (err) {
+      aviso(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  function cancelarEdicion() {
+    editandoId = null;
+    $("titulo-form").textContent = "Agregar un regalo";
+    $("btn-guardar").textContent = "Agregar";
+    $("btn-cancelar").classList.add("oculto");
+    aviso.className = "aviso";
+  }
+  $("btn-cancelar").addEventListener("click", cancelarEdicion);
+</script>
