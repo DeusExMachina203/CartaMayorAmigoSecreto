@@ -19,15 +19,14 @@ import Layout from "../layouts/Layout.astro";
     <h2 id="titulo-form" style="margin-top:0;">Agregar un regalo</h2>
 
     <div class="campo-url">
-      <label for="amazon-url">Enlace de Amazon (opcional)</label>
+      <label for="amazon-url">Enlace del producto (opcional)</label>
       <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
-        <input id="amazon-url" type="url" placeholder="https://www.amazon.com/-/dp/..." />
+        <input id="amazon-url" type="url" placeholder="Pega el enlace (Falabella, Amazon, Paris, Sodimac...)" />
         <button type="button" id="btn-autocompletar" class="btn secundario">✨ Autocompletar</button>
       </div>
       <p style="margin:0.4rem 0 0; font-size:0.85rem; color:var(--gris);">
         Intentamos traer el nombre y la foto automáticamente. Si no funciona,
-        complétalo a mano. También puedes agregar regalos de otras tiendas o
-        solo ideas.
+        complétalo a mano. También puedes agregar regalos sin enlace.
       </p>
     </div>
 
@@ -113,7 +112,7 @@ import Layout from "../layouts/Layout.astro";
       ${item.notes ? `<p style="margin:0.3rem 0 0; color:var(--gris); font-size:0.95rem;">${item.notes}</p>` : ""}
       ${
         item.amazon_url
-          ? `<a href="${item.amazon_url}" target="_blank" rel="noopener noreferrer" style="font-size:0.9rem;">Ver en Amazon ↗</a>`
+          ? `<a href="${item.amazon_url}" target="_blank" rel="noopener noreferrer" style="font-size:0.9rem;">Ver en tienda ↗</a>`
           : ""
       }
     `;
@@ -156,7 +155,7 @@ import Layout from "../layouts/Layout.astro";
   $("btn-autocompletar").addEventListener("click", async () => {
     const url = $("amazon-url").value.trim();
     if (!url) {
-      aviso("Pega primero un enlace de Amazon.");
+      aviso("Pega primero un enlace del producto.");
       return;
     }
     const btn = $("btn-autocompletar");

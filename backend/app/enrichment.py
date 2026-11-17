@@ -1,11 +1,11 @@
-"""Enriquecimiento de enlaces de Amazon.
+"""Enriquecimiento de enlaces de tiendas online.
 
-Intenta obtener nombre e imagen de un producto de Amazon sin credenciales:
-extrae el ASIN del enlace y lee las etiquetas Open Graph de la página.
-
-Es "best-effort": si Amazon bloquea el pedido, se devuelve vacío y el usuario
-completa los datos a mano. Si en el futuro se obtiene acceso a la Creators API
-de Amazon, este módulo se reemplaza por GetItems sin cambiar el resto de la app.
+Extrae nombre e imagen de la página del producto usando sus etiquetas
+Open Graph. Funciona bien con tiendas que no bloquean bots (Falabella,
+Paris, Sodimac, etc.). Amazon sí bloquea de forma intermitente, así que
+para Amazon esto es best-effort y el usuario completa a mano; cuando
+tengamos credenciales de una API oficial (Creators API de Amazon o la
+AE Affiliate API de AliExpress) se conectan aquí sin cambiar el resto.
 """
 
 import logging
@@ -16,22 +16,31 @@ import httpx
 
 logger = logging.getLogger("amigosecreto.enrichment")
 
-# Patrones comunes de enlaces de producto: /dp/ASIN, /gp/product/ASIN
+# Patrones comunes de enlaces de producto de Amazon: /dp/ASIN, /gp/product/ASIN
 _ASIN_RE = re.compile(r"/(?:dp|gp/product|product)/([A-Z0-9]{10})", re.IGNORECASE)
 
 _HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
     ),
     "Accept-Language": "es-PE,es;q=0.9,en;q=0.5",
 }
 
 
 def extract_asin(url: str) -> str:
-    """Extrae el ASIN de un enlace de Amazon ('' si no se encuentra)."""
+    """Extrae el ASIN de un enlace de Amazon ('' si no es de Amazon)."""
     m = _ASIN_RE.search(url)
     return m.group(1).upper() if m else ""
+
+
+def _limpiar_titulo(raw: str) -> str:
+    """Quita colas de marca del título, p. ej. '| Falabella Perú'."""
+    title = raw.strip()
+    title = re.sub(r"\s*[|–]\s*Falabella.*$", "", title)
+    title = re.sub(r"^Amazon\.[a-z.]+:\s*", "", title)
+    title = re.sub(r"\s*\|\s*Mercado Libre.*$", "", title)
+    return title[:255]
 
 
 class _MetaParser(HTMLParser):
@@ -46,44 +55,37 @@ class _MetaParser(HTMLParser):
             return
         d = dict(attrs)
         prop = d.get("property") or d.get("name") or ""
-        if prop in ("og:title", "og:image", "twitter:title", "twitter:image", "title"):
+        if prop in ("og:title", "og:image") and prop not in self.props:
             content = d.get("content", "")
-            if content and prop not in self.props:
+            if content:
                 self.props[prop] = content
 
 
-def _clean_title(raw: str) -> str:
-    # Los títulos de Amazon suelen ser larguísimos: recortar un poco.
-    title = raw.strip()
-    for sep in (" - ", " | ", " : "):
-        if sep in title and len(title) > 90:
-            title = title.split(sep)[0]
-            break
-    return title[:255]
+def fetch_product_info(url: str, timeout: float = 10.0) -> dict:
+    """Devuelve {'name', 'image_url', 'asin'}; campos vacíos si no se pudo.
 
-
-def fetch_product_info(url: str, timeout: float = 8.0) -> dict:
-    """Devuelve {'name', 'image_url', 'asin'}; campos vacíos si no se pudo."""
+    Best-effort: si la tienda bloquea o no tiene og-tags, se devuelve vacío
+    y el usuario completa los campos a mano.
+    """
     result = {"name": "", "image_url": "", "asin": extract_asin(url)}
-    if "amazon." not in url:
-        return result
 
     try:
         response = httpx.get(url, headers=_HEADERS, timeout=timeout, follow_redirects=True)
-        if response.status_code != 200 or len(response.text) < 500:
-            logger.info("Amazon devolvió %s para %s", response.status_code, url)
-            return result
     except httpx.HTTPError as exc:
-        logger.info("No se pudo obtener la página de Amazon: %s", exc)
+        logger.info("No se pudo obtener la página: %s", exc)
+        return result
+
+    if response.status_code != 200 or len(response.text) < 500:
+        logger.info("Respuesta inútil de la tienda (%s): %s", response.status_code, url)
         return result
 
     parser = _MetaParser()
     try:
-        parser.feed(response.text[:200_000])  # las meta etiquetas están al inicio
+        parser.feed(response.text[:500_000])
     except Exception:  # HTML malformado: no es fatal
         pass
 
-    if title := parser.props.get("og:title") or parser.props.get("twitter:title"):
-        result["name"] = _clean_title(title)
-    result["image_url"] = parser.props.get("og:image") or parser.props.get("twitter:image", "")
+    if title := parser.props.get("og:title"):
+        result["name"] = _limpiar_titulo(title)
+    result["image_url"] = parser.props.get("og:image", "")
     return result
