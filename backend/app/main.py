@@ -63,3 +63,19 @@ def health():
     """Endpoint de health-check para monitores locales (dev/upertools)."""
     return {"status": "ok"}
 
+
+@app.get("/v1/models", tags=["meta"], include_in_schema=False)
+def modelos():
+    """Lista de "modelos" estilo OpenAI para herramientas locales que la piden."""
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": "amigo-secreto-v1",
+                "object": "model",
+                "created": 1765430400,
+                "owned_by": "cartamayor",
+            }
+        ],
+    }
+
