@@ -57,3 +57,9 @@ def startup() -> None:
 def salud():
     return {"estado": "ok", "sorteo": "pendiente de Navidad 🎄"}
 
+
+@app.get("/health", tags=["meta"], include_in_schema=False)
+def health():
+    """Endpoint de health-check para monitores locales (dev/upertools)."""
+    return {"status": "ok"}
+
