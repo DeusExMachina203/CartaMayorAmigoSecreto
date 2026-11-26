@@ -152,6 +152,9 @@ import Layout from "../layouts/Layout.astro";
     align-items: center;
     min-height: 62vh;
   }
+  .hero-texto {
+    padding-left: clamp(0px, 6vw, 110px); /* acerca el texto al centro de la página */
+  }
   .hero-texto h1 {
     font-size: clamp(2.6rem, 5.5vw, 4.3rem);
     position: relative;
@@ -251,6 +254,9 @@ import Layout from "../layouts/Layout.astro";
   }
 
   @media (max-width: 1000px) {
+    .hero-texto {
+      padding-left: 0;
+    }
     .pasos {
       grid-template-columns: 1fr;
       gap: 0.7rem;
