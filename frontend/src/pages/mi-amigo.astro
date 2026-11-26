@@ -37,7 +37,7 @@ import Layout from "../layouts/Layout.astro";
       <p class="paso" style="margin:0;">Le regalas a...</p>
       <div class="ruleta-wrap">
         <div id="rueda" class="rueda"></div>
-        <div id="marcador" class="marcador">🎲</div>
+        <div id="marcador" class="marcador"></div>
       </div>
       <button class="btn" id="btn-girar" style="font-size:1.05rem; padding:0.85rem 2.2rem; margin-top:0.8rem;">
         Girar la ruleta
@@ -141,6 +141,10 @@ import Layout from "../layouts/Layout.astro";
     padding: 0.5rem 1.5rem;
     border-radius: 12px;
     min-width: 45%;
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     box-shadow: 0 8px 20px rgb(0 0 0 / 0.25);
   }
   #confeti {
@@ -281,6 +285,7 @@ import Layout from "../layouts/Layout.astro";
     ]);
 
     // Marcar la casilla ganadora y ponerla derecha
+    let casillaGanadora: HTMLElement | undefined;
     const paso = 360 / nombresPool.length;
     for (const casilla of rueda.querySelectorAll(".casilla")) {
       if (casilla.textContent === amigo.name) {
@@ -288,28 +293,44 @@ import Layout from "../layouts/Layout.astro";
         const radio = rueda.clientWidth / 2 - 26;
         casilla.classList.add("ganadora");
         casilla.style.transform = `translate(-50%, -50%) rotate(${angulo}deg) translateY(-${radio}px) rotate(180deg)`;
+        casillaGanadora = casilla as HTMLElement;
         break;
       }
     }
 
-    // El nombre "cae" dentro del rectángulo rojo
-    $("marcador").textContent = amigo.name;
+    // El nombre "cae" desde la ruleta hasta dentro del rectángulo rojo
+    setTimeout(() => {
+      const marcador = $("marcador");
+      if (casillaGanadora) {
+        const desde = casillaGanadora.getBoundingClientRect();
+        const hasta = marcador.getBoundingClientRect();
+        const vuelo = casillaGanadora.cloneNode(true) as HTMLElement;
+        vuelo.style.cssText = `position:fixed; left:${desde.left}px; top:${desde.top}px; width:${desde.width}px; margin:0; z-index:70; transition: all 0.7s cubic-bezier(0.55, 0, 0.3, 1);`;
+        document.body.appendChild(vuelo);
+        casillaGanadora.style.visibility = "hidden";
+        requestAnimationFrame(() => {
+          vuelo.style.left = `${hasta.left + (hasta.width - desde.width) / 2}px`;
+          vuelo.style.top = `${hasta.top + (hasta.height - desde.height) / 2}px`;
+        });
+        setTimeout(() => vuelo.remove(), 750);
+      }
 
-    // 🎉 Confeti
-    lanzarConfeti();
+      // El nombre queda dentro del rectángulo rojo + confeti 🎉
+      setTimeout(() => {
+        marcador.textContent = amigo.name;
+        lanzarConfeti();
 
-    // Mostrar la lista de deseos debajo
-    $("ayuda-presupuesto").textContent =
-      (config.budget_min != null || config.budget_max != null
-        ? `Presupuesto sugerido: S/ ${config.budget_min ?? 0} - S/ ${config.budget_max ?? "∞"}`
-        : "") + (config.event_date ? ` · Intercambio: ${config.event_date}` : "");
-    pintarLista(amigo.wishlist);
-    $("lista-bloque").classList.remove("oculto");
-
-    // El nombre grande arriba
-    $("nombre-amigo").textContent = amigo.name;
-    $("contenido").classList.remove("oculto");
-    $("btn-girar").classList.add("oculto");
+        $("ayuda-presupuesto").textContent =
+          (config.budget_min != null || config.budget_max != null
+            ? `Presupuesto sugerido: S/ ${config.budget_min ?? 0} - S/ ${config.budget_max ?? "∞"}`
+            : "") + (config.event_date ? ` · Intercambio: ${config.event_date}` : "");
+        pintarLista(amigo.wishlist);
+        $("lista-bloque").classList.remove("oculto");
+        $("nombre-amigo").textContent = amigo.name;
+        $("contenido").classList.remove("oculto");
+        $("btn-girar").classList.add("oculto");
+      }, 720);
+    }, 550);
   }
 
   /* ---------- Confeti ---------- */
