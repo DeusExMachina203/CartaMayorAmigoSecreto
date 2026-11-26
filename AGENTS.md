@@ -22,7 +22,7 @@ Funciona y está probado de punta a punta:
 - ✅ **Sorteo individual por clic** (`POST /api/sortear`): con el primer clic de cualquier participante se genera en secreto un derangement completo (nadie se auto-regala, ningún receptor se repite); cada clic solo REVELA la asignación ya creada (`assignments.revealed_at`). `GET /api/mi-amigo` da 404 hasta que el participante haya tocado "Realizar mi sorteo". El admin puede pre-generar o deshacer/rehacer desde el panel.
 - ✅ Panel admin (contraseña en `ADMIN_PASSWORD`): participantes, presupuesto, fecha, sorteo, enlace de invitación
 - ✅ Emails reales vía SMTP de Proton (configurado en `backend/.env`, ver abajo)
-- ✅ Rediseño con el mockup del usuario (PSD en capas): sidebar verde, fondo beige `#CFC7B0`, Playfair Display + Jost, muñeco de nieve reemplazado por un perrito con gorro de Santa (generado con IA)
+- ✅ Rediseño con el mockup del usuario (PSD en capas): sidebar verde, fondo beige `#CAC1A5`, Playfair Display + Jost. El muñeco de nieve fue reemplazado por **Adrian** (foto real del amigo en `~/Pictures/friends/adrianhe.jpg`, editada con IA: gorro de Santa + integración en el trineo; original con permiso del grupo)
 
 ## Cómo correr
 
