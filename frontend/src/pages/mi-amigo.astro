@@ -6,18 +6,7 @@ import Layout from "../layouts/Layout.astro";
   <p class="paso">Solo para tus ojos 🤫</p>
   <h1 style="margin-top:0.2rem;">Tu amigo secreto</h1>
 
-  <div id="contenido" class="oculto">
-    <section class="tarjeta" id="tarjeta-amigo" style="text-align:center;">
-      <p style="margin:0; color:var(--gris);">Le regalas a</p>
-      <p id="nombre-amigo" style="font-size:2rem; font-weight:800; color:var(--verde-oscuro); margin:0.2rem 0 0.8rem;"></p>
-      <p id="ayuda-presupuesto" style="margin:0; color:var(--gris);"></p>
-    </section>
-
-    <h2>Su lista de deseos</h2>
-    <div id="items" style="display:grid; gap:0.9rem;"></div>
-    <p id="sin-lista" class="aviso"></p>
-  </div>
-
+  <!-- Aún no se ha hecho ningún sorteo -->
   <div id="sin-sorteo" class="tarjeta oculto" style="text-align:center; margin-top:1rem;">
     <p style="font-size:2.5rem; margin:0.5rem 0;">🎅</p>
     <p style="font-weight:700; font-size:1.15rem; margin:0;">El sorteo aún no se ha realizado</p>
@@ -25,6 +14,36 @@ import Layout from "../layouts/Layout.astro";
       Vuelve cuando el organizador lo anuncie. Mientras tanto,
       <a href="/mi-lista">mejora tu lista de deseos</a>. 😉
     </p>
+  </div>
+
+  <!-- Turno de tocar el botón -->
+  <div id="por-sortear" class="oculto" style="text-align:center; margin-top:1.5rem;">
+    <section class="tarjeta">
+      <p style="font-size:2.5rem; margin:0.5rem 0;">🎲</p>
+      <p style="font-weight:700; font-size:1.2rem; margin:0.2rem 0;">¡Es tu momento!</p>
+      <p style="color:var(--gris); margin:0.2rem 0 1.2rem;">
+        Toca el botón y descubre a quién le toca darle un regalo.<br />
+        Cada quien solo puede verlo una vez... ¡sin trampa!
+      </p>
+      <button class="btn" id="btn-sortear" style="font-size:1.1rem; padding:0.9rem 2.2rem;">
+        Realizar mi sorteo
+      </button>
+    </section>
+  </div>
+
+  <!-- Revelación -->
+  <div id="contenido" class="oculto">
+    <section class="tarjeta" id="tarjeta-amigo" style="text-align:center;">
+      <p id="etiqueta-amigo" style="margin:0; color:var(--gris);">Le regalas a</p>
+      <p id="nombre-amigo" style="font-size:2.2rem; font-weight:800; color:var(--verde-oscuro); margin:0.2rem 0 0.8rem; font-family:'Playfair Display', serif; letter-spacing:0.04em;">🎲...</p>
+      <p id="ayuda-presupuesto" style="margin:0; color:var(--gris);"></p>
+    </section>
+
+    <div id="lista-bloque" class="oculto">
+      <h2>Su lista de deseos</h2>
+      <div id="items" style="display:grid; gap:0.9rem;"></div>
+      <p id="sin-lista" class="aviso"></p>
+    </div>
   </div>
 
   <p id="aviso" class="aviso" role="alert"></p>
@@ -42,37 +61,103 @@ import Layout from "../layouts/Layout.astro";
     cargar();
   }
 
+  // Nombres de los participantes para la animación de ruleta
+  let nombresPool: string[] = [];
+
   async function cargar() {
-    let amigo, config;
+    let config, intento;
     try {
-      [amigo, config] = await Promise.all([api("/api/mi-amigo"), api("/api/participantes/config")]);
+      config = await api("/api/participantes/config");
+      intento = await api("/api/mi-amigo").catch((e) => (e.status === 404 ? null : Promise.reject(e)));
     } catch (err) {
-      if (err.status === 404) {
-        $("sin-sorteo").classList.remove("oculto");
-        document.body.dataset.cargado = "1";
-        return;
-      }
       const avisoEl = $("aviso");
       avisoEl.textContent = err.message;
       avisoEl.className = "aviso error";
       return;
     }
 
-    $("nombre-amigo").textContent = amigo.name;
-    if (config.budget_min || config.budget_max) {
-      $("ayuda-presupuesto").textContent = `Presupuesto sugerido: ${config.budget_min ?? 0} - ${config.budget_max ?? "∞"} soles`;
+    if (!config.draw_done) {
+      $("sin-sorteo").classList.remove("oculto");
+      return;
     }
-    if (config.event_date) {
-      $("ayuda-presupuesto").textContent += ` · Intercambio: ${config.event_date}`;
+    if (intento) {
+      mostrar(intento, config, false);
+    } else {
+      $("por-sortear").classList.remove("oculto");
+    }
+  }
+
+  function mostrar(amigo, config, conAnimacion) {
+    const pintar = () => {
+      $("nombre-amigo").textContent = amigo.name;
+      if (config.budget_min != null || config.budget_max != null) {
+        $("ayuda-presupuesto").textContent =
+          `Presupuesto sugerido: S/ ${config.budget_min ?? 0} - S/ ${config.budget_max ?? "∞"}` +
+          (config.event_date ? ` · Intercambio: ${config.event_date}` : "");
+      }
+      pintarLista(amigo.wishlist);
+      $("lista-bloque").classList.remove("oculto");
+    };
+
+    if (!conAnimacion) {
+      pintar();
+      $("contenido").classList.remove("oculto");
+      return;
     }
 
-    $("sin-lista").style.display = amigo.wishlist.length ? "none" : "block";
+    // Animación de "ruleta": nombres al azar hasta caer en el bueno
+    $("contenido").classList.remove("oculto");
+    $("etiqueta-amigo").textContent = "Le regalas a...";
+    let i = 0;
+    let ultima = "";
+    const giros = 18;
+    const timer = setInterval(() => {
+      let n = amigo.name;
+      if (nombresPool.length > 1) {
+        do {
+          n = nombresPool[Math.floor(Math.random() * nombresPool.length)];
+        } while (n === ultima);
+      }
+      ultima = n;
+      $("nombre-amigo").textContent = n;
+      i++;
+      if (i >= giros) {
+        clearInterval(timer);
+        pintar();
+        $("etiqueta-amigo").textContent = "Le regalas a";
+      }
+    }, 90);
+  }
+
+  $("btn-sortear")?.addEventListener("click", async () => {
+    const btn = $("btn-sortear");
+    btn.disabled = true;
+    btn.textContent = "Sorteando...";
+    try {
+      // Cargar nombres de participantes para la animación
+      const participantes = await api("/api/participantes");
+      nombresPool = participantes.map((p: { name: string }) => p.name).filter((n: string) => n);
+
+      const [amigo, config] = await Promise.all([api("/api/sortear"), api("/api/participantes/config")]);
+      $("por-sortear").classList.add("oculto");
+      mostrar(amigo, config, true);
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = "Realizar mi sorteo";
+      const avisoEl = $("aviso");
+      avisoEl.textContent = err.message;
+      avisoEl.className = "aviso error";
+    }
+  });
+
+  function pintarLista(items: any[]) {
+    $("sin-lista").style.display = items.length ? "none" : "block";
     $("sin-lista").className = "aviso ok";
     $("sin-lista").textContent =
       "Todavía no ha agregado nada a su lista. ¡Paciencia, o consúltale sus gustos con sutileza! 😏";
 
     $("items").replaceChildren(
-      ...amigo.wishlist.map((item) => {
+      ...items.map((item) => {
         const art = document.createElement("article");
         art.className = "tarjeta";
         art.style.display = "flex";
@@ -82,8 +167,14 @@ import Layout from "../layouts/Layout.astro";
         const img = document.createElement("img");
         img.alt = item.name;
         img.style.cssText =
-          "width:86px;height:86px;object-fit:cover;border-radius:10px;background:var(--crema);flex-shrink:0;";
+          "width:86px;height:86px;object-fit:cover;border-radius:10px;background:var(--fondo);flex-shrink:0;";
         if (item.image_url) img.src = item.image_url;
+        else
+          img.src =
+            "data:image/svg+xml," +
+            encodeURIComponent(
+              `<svg xmlns="http://www.w3.org/2000/svg" width="86" height="86"><rect width="86" height="86" rx="10" fill="#f3e9d8"/><text x="43" y="55" font-size="36" text-anchor="middle">🎁</text></svg>`
+            );
         img.onerror = () => {
           img.src =
             "data:image/svg+xml," +
@@ -91,7 +182,6 @@ import Layout from "../layouts/Layout.astro";
               `<svg xmlns="http://www.w3.org/2000/svg" width="86" height="86"><rect width="86" height="86" rx="10" fill="#f3e9d8"/><text x="43" y="55" font-size="36" text-anchor="middle">🎁</text></svg>`
             );
         };
-        if (!item.image_url) img.dispatchEvent(new Event("error"));
 
         const cuerpo = document.createElement("div");
         cuerpo.style.flex = "1";
@@ -109,7 +199,5 @@ import Layout from "../layouts/Layout.astro";
         return art;
       })
     );
-
-    $("contenido").classList.remove("oculto");
   }
 </script>

@@ -9,7 +9,7 @@ import re
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models import Assignment
+from app.models import Assignment, Player
 
 # Captura los códigos "enviados por correo" (modo consola del emailer)
 codigos: dict[str, str] = {}
@@ -177,27 +177,57 @@ def main():
         assert r.status_code == 200, r.text
         print("== Enriquecer (og-tags):", r.json(), "==")
 
-        # ---- Sorteo ----
+        # ---- Sorteo individual por clics ----
         # Sin sesión de admin debe rechazar (quitamos la cookie primero)
         c.cookies.delete("admin_sesion")
-        r = c.post("/api/admin/sorteo")
-        assert r.status_code == 401, "sorteo sin admin debió dar 401"
-        c.post("/api/admin/login", json={"password": "admin-dev"})
-        r = c.post("/api/admin/sorteo")
-        assert r.status_code == 200, r.text
-        print("== Sorteo:", r.json(), "==")
-        r = c.post("/api/admin/sorteo")
-        assert r.status_code == 409, "sorteo doble debió dar 409"
+        n = len(c.get("/api/participantes").json())  # total de participantes (incluye datos reales)
+        r = c.get("/api/mi-amigo")
+        assert r.status_code == 404, "mi-amigo antes de revelar debió dar 404"
+        r = c.post("/api/sortear")
+        assert r.status_code == 200, f"primer clic debe crear el sorteo: {r.text}"
 
-        # Verificar derangement y unicidad en la BD
+        # El sorteo se creó al vuelo: config pública lo refleja
+        cfg = c.get("/api/participantes/config").json()
+        assert cfg["draw_done"] is True, cfg
+
+        # Repetir el clic da SIEMPRE el mismo asignado (nada de repetidos)
+        r = c.post("/api/sortear")
+        assert r.status_code == 200, r.text
+        primer_amigo = r.json()["name"]
+        r = c.post("/api/sortear")
+        assert r.json()["name"] == primer_amigo, "el asignado no debe cambiar entre clics"
+
+        # Cada participante revela una sola vez y todos los receptores únicos
         from app.database import SessionLocal
+        receptores = [primer_amigo]
+        for _, email in AMIGOS[1:]:
+            c.post("/api/auth/salir")
+            pedir_y_verificar(c, email)
+            r = c.get("/api/mi-amigo")
+            assert r.status_code == 404, "sin revelar, mi-amigo debió dar 404"
+            r = c.post("/api/sortear")
+            assert r.status_code == 200, r.text
+            receptores.append(r.json()["name"])
+            r = c.get("/api/mi-amigo")
+            assert r.status_code == 200, r.text
+            assert r.json()["name"] == receptores[-1]
+
+        # Nadie se regala a sí mismo ni receptores repetidos
         db = SessionLocal()
         asignaciones = db.query(Assignment).all()
-        assert len(asignaciones) == 3
+        assert len(asignaciones) == n
         assert all(a.giver_id != a.receiver_id for a in asignaciones), "alguien se regaló a sí mismo"
-        assert len({a.giver_id for a in asignaciones}) == 3
-        assert len({a.receiver_id for a in asignaciones}) == 3
+        assert len({a.giver_id for a in asignaciones}) == n
+        assert len({a.receiver_id for a in asignaciones}) == n, "un receptor se repitió"
+        # Los 3 participantes de prueba sí deben quedar revelados
+        correos_prueba = [e for _, e in AMIGOS]
+        for email_prueba in correos_prueba:
+            pid = db.query(Player).filter(Player.email == email_prueba).first().id
+            a = db.query(Assignment).filter(Assignment.giver_id == pid).first()
+            assert a is not None and a.revealed_at is not None, f"{email_prueba} sin revelar"
         db.close()
+        print("== Sorteo por clics: sin repetidos, sin auto-regalo, idempotente ==")
+        print("   asignaciones:", " | ".join(receptores))
 
         # Cada quien ve solo a su asignado
         for _, email in AMIGOS:
@@ -210,12 +240,13 @@ def main():
 
         # ---- Público ----
         part = c.get("/api/participantes").json()
-        assert len(part) == 3 and all("email" not in p for p in part), part
+        assert len(part) >= 3 and all("email" not in p for p in part), part
         cfg = c.get("/api/participantes/config").json()
         assert cfg["budget_max"] == 50 and cfg["draw_done"] is True, cfg
         print("== Participantes públicos sin correos; config pública OK ==")
 
-        # ---- Deshacer y rehacer ----
+        # ---- Deshacer y rehacer (requiere ser admin de nuevo) ----
+        c.post("/api/admin/login", json={"password": "admin-dev"})
         r = c.delete("/api/admin/sorteo")
         assert r.status_code == 204, r.text
         r = c.post("/api/admin/sorteo")

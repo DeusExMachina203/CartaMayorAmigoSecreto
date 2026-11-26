@@ -51,6 +51,14 @@ app.include_router(admin.router)
 def startup() -> None:
     # Prototipo: crea las tablas si no existen. En producción usar Alembic.
     Base.metadata.create_all(engine)
+    # Migración idempotente: columna revelada_at (clic individual del sorteo)
+    from sqlalchemy import text
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE assignments ADD COLUMN revealed_at TIMESTAMP"))
+    except Exception:
+        pass  # ya existe
 
 
 @app.get("/api/salud", tags=["meta"])

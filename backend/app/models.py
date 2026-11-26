@@ -84,6 +84,8 @@ class Assignment(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     giver_id: Mapped[int] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), unique=True)
     receiver_id: Mapped[int] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"))
+    # Momento en que el participante hizo clic en "Sortear" y vio su asignación
+    revealed_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

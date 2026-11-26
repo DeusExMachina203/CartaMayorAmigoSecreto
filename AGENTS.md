@@ -19,7 +19,7 @@ Funciona y está probado de punta a punta:
 - ✅ Auth por código de 6 dígitos enviado por correo (sin contraseñas), JWT en cookie HttpOnly
 - ✅ Auto-registro con **enlace de invitación** (`/ingresar?inv=CODIGO`): los amigos se registran solos con nombre + correo; NO hay botón "Ingresar" en la UI (decisión del usuario: la entrada es solo por el enlace de invitación)
 - ✅ Wishlist CRUD + vista previa de imagen + **subida de imágenes desde el dispositivo** (blobs en la BD, límite 50 MB, servidas por `/api/imagenes/{id}`)
-- ✅ Sorteo tipo derangement (nadie se regala a sí mismo), deshacer/rehacer
+- ✅ **Sorteo individual por clic** (`POST /api/sortear`): con el primer clic de cualquier participante se genera en secreto un derangement completo (nadie se auto-regala, ningún receptor se repite); cada clic solo REVELA la asignación ya creada (`assignments.revealed_at`). `GET /api/mi-amigo` da 404 hasta que el participante haya tocado "Realizar mi sorteo". El admin puede pre-generar o deshacer/rehacer desde el panel.
 - ✅ Panel admin (contraseña en `ADMIN_PASSWORD`): participantes, presupuesto, fecha, sorteo, enlace de invitación
 - ✅ Emails reales vía SMTP de Proton (configurado en `backend/.env`, ver abajo)
 - ✅ Rediseño con el mockup del usuario (PSD en capas): sidebar verde, fondo beige `#CFC7B0`, Playfair Display + Jost, muñeco de nieve reemplazado por un perrito con gorro de Santa (generado con IA)
@@ -37,7 +37,7 @@ cd ../frontend && npm install
 ./tunel.sh stop     # detener
 
 # Pruebas:
-cd backend && .venv/bin/python scripts/smoke_test.py       # flujo completo (crea datos de prueba)
+cd backend && .venv/bin/python scripts/smoke_test.py       # flujo completo (usa su propia BD: data/smoke.db)
 .venv/bin/python scripts/prueba_correo.py TU@CORREO.com    # prueba SMTP real
 ```
 
