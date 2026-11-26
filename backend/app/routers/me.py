@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..draw import get_assignment, run_draw
-from ..models import Player, utcnow
+from ..models import Assignment, Player, utcnow
 from ..schemas import ReceiverOut, WishlistItemOut
 from ..security import get_current_player
 from .participants import get_settings
@@ -27,9 +27,17 @@ _sorteo_lock = Lock()
 
 @router.post("/sortear", response_model=ReceiverOut)
 def sortear(db: Session = Depends(get_db), player: Player = Depends(get_current_player)):
-    """Revela a quién le regalo yo. Si el sorteo no existe aún, se crea."""
+    """Revela a quién le regalo yo. Si el sorteo no existe aún, se crea.
+
+    Si el sorteo ya se hizo pero el participante se unió después (sin
+    asignación), se cuela al derangement: da al receptor de alguien que
+    aún no haya revelado, y esa persona pasa a regalarle a él. Así el
+    nuevo queda integrado sin afectar a quienes ya vieron su resultado.
+    """
     with _sorteo_lock:
         s = get_settings(db)
+        assignment = get_assignment(db, player.id)
+
         if not s.draw_done:
             player_ids = [p.id for p in db.query(Player).all()]
             try:
@@ -39,10 +47,27 @@ def sortear(db: Session = Depends(get_db), player: Player = Depends(get_current_
             s.draw_done = True
             s.draw_done_at = utcnow()
             db.commit()
+        elif assignment is None:
+            # Llegó tarde: colarse en el sorteo sin romper nada
+            candidatos = (
+                db.query(Assignment)
+                .join(Player, Player.id == Assignment.giver_id)
+                .filter(Assignment.giver_id != player.id, Assignment.revealed_at.is_(None))
+                .all()
+            )
+            if not candidatos:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "Todos los participantes ya vieron su resultado; "
+                    "pide a Ernesto deshacer y rehacer el sorteo",
+                )
+            elegido = candidatos[0]
+            nuevo = Assignment(giver_id=player.id, receiver_id=elegido.receiver_id, revealed_at=utcnow())
+            elegido.receiver_id = player.id
+            db.add(nuevo)
+            db.commit()
+            assignment = get_assignment(db, player.id)
 
-    assignment = get_assignment(db, player.id)
-    if not assignment:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "No tienes asignación")
     if assignment.revealed_at is None:
         assignment.revealed_at = utcnow()
         db.commit()

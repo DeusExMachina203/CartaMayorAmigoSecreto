@@ -105,6 +105,12 @@ def get_current_player(
     request: Request, db: Session = Depends(get_db)
 ) -> Player:
     token = request.cookies.get(SESSION_COOKIE)
+    import logging
+    logging.getLogger("debug-cookie").warning(
+        "COOKIE RECIBIDA: %r | headers cookie: %r",
+        (token or "")[:40],
+        request.headers.get("cookie", "")[:120],
+    )
     if not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "No has iniciado sesión")
     payload = _decode_token(token, "user")

@@ -22,7 +22,7 @@ import Layout from "../layouts/Layout.astro";
       <p style="font-size:2.5rem; margin:0.5rem 0;">🎲</p>
       <p style="font-weight:700; font-size:1.2rem; margin:0.2rem 0;">¡Es tu momento!</p>
       <p style="color:var(--gris); margin:0.2rem 0 1.2rem;">
-        Toca el botón y descubre a quién le toca darle un regalo.<br />
+        Toca el botón y prepara la ruleta.<br />
         Cada quien solo puede verlo una vez... ¡sin trampa!
       </p>
       <button class="btn" id="btn-sortear" style="font-size:1.1rem; padding:0.9rem 2.2rem;">
@@ -31,11 +31,25 @@ import Layout from "../layouts/Layout.astro";
     </section>
   </div>
 
-  <!-- Revelación -->
+  <!-- Ruleta -->
+  <div id="ruleta-stage" class="oculto">
+    <section class="tarjeta ruleta-tarjeta" id="ruleta-tarjeta">
+      <p class="paso" style="margin:0;">Le regalas a...</p>
+      <div class="ruleta-wrap">
+        <div id="rueda" class="rueda"></div>
+        <div id="marcador" class="marcador">🎲</div>
+      </div>
+      <button class="btn" id="btn-girar" style="font-size:1.05rem; padding:0.85rem 2.2rem; margin-top:0.8rem;">
+        Girar la ruleta
+      </button>
+    </section>
+  </div>
+
+  <!-- Resultado final -->
   <div id="contenido" class="oculto">
     <section class="tarjeta" id="tarjeta-amigo" style="text-align:center;">
       <p id="etiqueta-amigo" style="margin:0; color:var(--gris);">Le regalas a</p>
-      <p id="nombre-amigo" style="font-size:2.2rem; font-weight:600; color:var(--verde-oscuro); margin:0.2rem 0 0.8rem; letter-spacing:0.06em;">🎲...</p>
+      <p id="nombre-amigo" style="font-size:2.2rem; font-weight:600; color:var(--verde-oscuro); margin:0.2rem 0 0.8rem; letter-spacing:0.06em;">...</p>
       <p id="ayuda-presupuesto" style="margin:0; color:var(--gris);"></p>
     </section>
 
@@ -47,12 +61,105 @@ import Layout from "../layouts/Layout.astro";
   </div>
 
   <p id="aviso" class="aviso" role="alert"></p>
+
+  <canvas id="confeti" class="oculto"></canvas>
 </Layout>
+
+<style is:global>
+  /* La ruleta crece con un rebote al aparecer.
+     is:global: las casillas se crean dinámicamente con JS y los estilos
+     scoped de Astro no alcanzarían a alcanzarlas. */
+  .ruleta-tarjeta {
+    text-align: center;
+    animation: crecer 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  @keyframes crecer {
+    from { transform: scale(0.5); opacity: 0; }
+    60% { transform: scale(1.07); }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .ruleta-wrap {
+    position: relative;
+    width: min(80vw, 370px);
+    aspect-ratio: 1;
+    margin: 1.2rem auto 1.6rem;
+  }
+  .rueda {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 10px solid var(--verde);
+    background: rgb(245 241 230 / 0.4);
+    box-shadow: inset 0 0 22px rgb(0 0 0 / 0.08), 0 10px 26px rgb(0 0 0 / 0.12);
+    transition: transform 4.4s cubic-bezier(0.12, 0.75, 0.15, 1);
+  }
+  .rueda::after {
+    content: "🎁";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 58px;
+    height: 58px;
+    background: var(--marfil);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
+  }
+  .casilla {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    background: var(--marfil);
+    border: 1px solid var(--borde);
+    border-radius: 999px;
+    padding: 0.14rem 0.65rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.1);
+    transition: background 0.3s, color 0.3s, transform 0.5s ease;
+  }
+  .casilla.ganadora {
+    background: var(--verde);
+    border-color: var(--verde-oscuro);
+    color: #fff;
+    font-weight: 600;
+  }
+  /* El rectángulo rojo: el nombre que queda abajo "cae" aquí */
+  .marcador {
+    position: absolute;
+    left: 50%;
+    bottom: -20px;
+    transform: translateX(-50%);
+    background: var(--rojo);
+    color: #fff;
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    padding: 0.5rem 1.5rem;
+    border-radius: 12px;
+    min-width: 45%;
+    box-shadow: 0 8px 20px rgb(0 0 0 / 0.25);
+  }
+  #confeti {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 60;
+  }
+</style>
 
 <script>
   import { api, quienSoy } from "../lib/api.js";
 
   const $ = (id) => document.getElementById(id);
+
+  // Nombres de los participantes (para la ruleta)
+  let nombresPool: string[] = [];
 
   const yo = await quienSoy().catch(() => null);
   if (!yo) {
@@ -61,14 +168,11 @@ import Layout from "../layouts/Layout.astro";
     cargar();
   }
 
-  // Nombres de los participantes para la animación de ruleta
-  let nombresPool: string[] = [];
-
   async function cargar() {
-    let config, intento;
+    let config, revelado;
     try {
       config = await api("/api/participantes/config");
-      intento = await api("/api/mi-amigo").catch((e) => (e.status === 404 ? null : Promise.reject(e)));
+      revelado = await api("/api/mi-amigo").catch((e) => (e.status === 404 ? null : Promise.reject(e)));
     } catch (err) {
       const avisoEl = $("aviso");
       avisoEl.textContent = err.message;
@@ -80,70 +184,29 @@ import Layout from "../layouts/Layout.astro";
       $("sin-sorteo").classList.remove("oculto");
       return;
     }
-    if (intento) {
-      mostrar(intento, config, false);
+    if (revelado) {
+      mostrar(revelado, config, false);
     } else {
       $("por-sortear").classList.remove("oculto");
     }
   }
 
-  function mostrar(amigo, config, conAnimacion) {
-    const pintar = () => {
-      $("nombre-amigo").textContent = amigo.name;
-      if (config.budget_min != null || config.budget_max != null) {
-        $("ayuda-presupuesto").textContent =
-          `Presupuesto sugerido: S/ ${config.budget_min ?? 0} - S/ ${config.budget_max ?? "∞"}` +
-          (config.event_date ? ` · Intercambio: ${config.event_date}` : "");
-      }
-      pintarLista(amigo.wishlist);
-      $("lista-bloque").classList.remove("oculto");
-    };
-
-    if (!conAnimacion) {
-      pintar();
-      $("contenido").classList.remove("oculto");
-      return;
-    }
-
-    // Animación de "ruleta": nombres al azar hasta caer en el bueno
-    $("contenido").classList.remove("oculto");
-    $("etiqueta-amigo").textContent = "Le regalas a...";
-    let i = 0;
-    let ultima = "";
-    const giros = 18;
-    const timer = setInterval(() => {
-      let n = amigo.name;
-      if (nombresPool.length > 1) {
-        do {
-          n = nombresPool[Math.floor(Math.random() * nombresPool.length)];
-        } while (n === ultima);
-      }
-      ultima = n;
-      $("nombre-amigo").textContent = n;
-      i++;
-      if (i >= giros) {
-        clearInterval(timer);
-        pintar();
-        $("etiqueta-amigo").textContent = "Le regalas a";
-      }
-    }, 90);
-  }
-
+  /* ---------- Paso 1: "Realizar mi sorteo" -> la ruleta aparece creciendo ---------- */
   $("btn-sortear")?.addEventListener("click", async () => {
     const btn = $("btn-sortear");
     btn.disabled = true;
-    btn.textContent = "Sorteando...";
+    btn.textContent = "Preparando la ruleta...";
     try {
-      // Cargar nombres de participantes para la animación
+      // El sorteo/revelación ocurre en el backend
       const participantes = await api("/api/participantes");
       nombresPool = participantes.map((p: { name: string }) => p.name).filter((n: string) => n);
 
-      const [amigo, config] = await Promise.all([
-        api("/api/sortear", { method: "POST" }),
-        api("/api/participantes/config"),
-      ]);
+      const amigo = await api("/api/sortear", { method: "POST" });
+
       $("por-sortear").classList.add("oculto");
-      mostrar(amigo, config, true);
+      // Primero mostrar (para que la rueda tenga tamaño medible) y luego construir
+      $("ruleta-stage").classList.remove("oculto");
+      construirRuleta(amigo.name);
     } catch (err) {
       btn.disabled = false;
       btn.textContent = "Realizar mi sorteo";
@@ -153,6 +216,148 @@ import Layout from "../layouts/Layout.astro";
     }
   });
 
+  /* ---------- Paso 2: construir la ruleta con todos los nombres en círculo ---------- */
+  function construirRuleta(ganador: string) {
+    const rueda = $("rueda");
+    rueda.innerHTML = "";
+    const N = nombresPool.length;
+    const paso = 360 / N;
+    const radio = Math.max(40, rueda.clientWidth / 2 - 26);
+
+    nombresPool.forEach((nombre, i) => {
+      const casilla = document.createElement("div");
+      casilla.className = "casilla";
+      casilla.textContent = nombre;
+      casilla.dataset.nombre = nombre;
+      casilla.dataset.angulo = String(i * paso);
+      casilla.style.transform = `translate(-50%, -50%) rotate(${i * paso}deg) translateY(-${radio}px)`;
+      if (N > 10) casilla.style.fontSize = "0.68rem";
+      rueda.appendChild(casilla);
+    });
+
+    // Guardar el ángulo exacto para que el ganador caiga abajo (180°)
+    const idx = Math.max(
+      nombresPool.indexOf(ganador),
+      0
+    );
+    const anguloGanador = idx * paso;
+    rueda.dataset.rotacionObjetivo = String(normalizar(180 - anguloGanador));
+  }
+
+  function normalizar(grados: number) {
+    let g = grados % 360;
+    if (g < 0) g += 360;
+    return g;
+  }
+
+  /* ---------- Paso 3: "Girar la ruleta" ---------- */
+  $("btn-girar")?.addEventListener("click", () => {
+    const btn = $("btn-girar");
+    btn.disabled = true;
+    btn.textContent = "Girando...";
+
+    const rueda = $("rueda");
+    const vueltas = 5;
+    const objetivo = parseFloat(rueda.dataset.rotacionObjetivo || "0");
+    const total = vueltas * 360 + objetivo;
+
+    rueda.style.transform = `rotate(${total}deg)`;
+
+    rueda.addEventListener(
+      "transitionend",
+      async () => {
+        // Al detenerse: marcador rojo con el nombre, confeti y lista
+        await aterrizar(rueda, total);
+      },
+      { once: true }
+    );
+  });
+
+  async function aterrizar(rueda: HTMLElement, total: number) {
+    // Recuperar el resultado real del backend (ya revelado)
+    const [amigo, config] = await Promise.all([
+      api("/api/mi-amigo"),
+      api("/api/participantes/config"),
+    ]);
+
+    // Marcar la casilla ganadora y ponerla derecha
+    const paso = 360 / nombresPool.length;
+    for (const casilla of rueda.querySelectorAll(".casilla")) {
+      if (casilla.textContent === amigo.name) {
+        const angulo = parseFloat((casilla as HTMLElement).dataset.angulo || "0");
+        const radio = rueda.clientWidth / 2 - 26;
+        casilla.classList.add("ganadora");
+        casilla.style.transform = `translate(-50%, -50%) rotate(${angulo}deg) translateY(-${radio}px) rotate(180deg)`;
+        break;
+      }
+    }
+
+    // El nombre "cae" dentro del rectángulo rojo
+    $("marcador").textContent = amigo.name;
+
+    // 🎉 Confeti
+    lanzarConfeti();
+
+    // Mostrar la lista de deseos debajo
+    $("ayuda-presupuesto").textContent =
+      (config.budget_min != null || config.budget_max != null
+        ? `Presupuesto sugerido: S/ ${config.budget_min ?? 0} - S/ ${config.budget_max ?? "∞"}`
+        : "") + (config.event_date ? ` · Intercambio: ${config.event_date}` : "");
+    pintarLista(amigo.wishlist);
+    $("lista-bloque").classList.remove("oculto");
+
+    // El nombre grande arriba
+    $("nombre-amigo").textContent = amigo.name;
+    $("contenido").classList.remove("oculto");
+    $("btn-girar").classList.add("oculto");
+  }
+
+  /* ---------- Confeti ---------- */
+  function lanzarConfeti() {
+    const canvas = $("confeti");
+    canvas.classList.remove("oculto");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d");
+    const colores = ["#b94359", "#4d6e4b", "#c9a86a", "#f5f1e6", "#e8dcc0", "#a2384d"];
+
+    const piezas = Array.from({ length: 170 }, () => ({
+      x: Math.random() * canvas.width,
+      y: -30 - Math.random() * canvas.height * 0.6,
+      w: 6 + Math.random() * 7,
+      h: 9 + Math.random() * 8,
+      color: colores[Math.floor(Math.random() * colores.length)],
+      vy: 2.4 + Math.random() * 3.4,
+      vx: -1.3 + Math.random() * 2.6,
+      rot: Math.random() * Math.PI,
+      vr: -0.12 + Math.random() * 0.24,
+    }));
+
+    const inicio = performance.now();
+    function cuadro(t: number) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of piezas) {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vr;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+      if (t - inicio < 4200) {
+        requestAnimationFrame(cuadro);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.classList.add("oculto");
+      }
+    }
+    requestAnimationFrame(cuadro);
+  }
+
+  /* ---------- Pintar la lista de deseos ---------- */
   function pintarLista(items: any[]) {
     $("sin-lista").style.display = items.length ? "none" : "block";
     $("sin-lista").className = "aviso ok";
