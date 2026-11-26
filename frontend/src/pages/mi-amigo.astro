@@ -386,8 +386,7 @@ import Layout from "../layouts/Layout.astro";
   function pintarLista(items: any[]) {
     $("sin-lista").style.display = items.length ? "none" : "block";
     $("sin-lista").className = "aviso ok";
-    $("sin-lista").textContent =
-      "Todavía no ha agregado nada a su lista. ¡Paciencia, o consúltale sus gustos con sutileza! 😏";
+    $("sin-lista").textContent = "Dile a esos taraos que pongan algo en su lista";
 
     $("items").replaceChildren(
       ...items.map((item) => {
