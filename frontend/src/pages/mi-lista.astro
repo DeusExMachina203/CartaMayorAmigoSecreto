@@ -6,6 +6,7 @@ import Layout from "../layouts/Layout.astro";
   <p class="paso">Tu lista de deseos</p>
   <h1 style="margin-top:0.2rem;">Mi lista 📝</h1>
   <p id="saludo" style="color:var(--gris); margin-top:0;"></p>
+  <p id="aviso" class="aviso" role="alert"></p>
 
   <div id="contenedor-lista">
     <div id="items" style="display:grid; gap:0.9rem;"></div>
@@ -17,7 +18,6 @@ import Layout from "../layouts/Layout.astro";
 
   <section class="tarjeta" style="margin-top:1.5rem;">
     <h2 id="titulo-form" style="margin-top:0;">Agregar un regalo</h2>
-
     <div class="campo-url">
       <label for="amazon-url">Enlace del producto (opcional)</label>
       <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
@@ -55,8 +55,6 @@ import Layout from "../layouts/Layout.astro";
       </div>
     </form>
   </section>
-
-  <p id="aviso" class="aviso" role="alert"></p>
 </Layout>
 
 <style>
@@ -170,8 +168,8 @@ import Layout from "../layouts/Layout.astro";
     return art;
   }
 
-  // Autocompletar desde Amazon
-  $("btn-autocompletar").addEventListener("click", async () => {
+  // Autocompletar desde un enlace (usado por el botón y por el pegado automático)
+  async function enriquecer() {
     const url = $("amazon-url").value.trim();
     if (!url) {
       aviso("Pega primero un enlace del producto.");
@@ -185,19 +183,36 @@ import Layout from "../layouts/Layout.astro";
       if (info.name) $("nombre").value = info.name;
       if (info.image_url) $("imagen").value = info.image_url;
       actualizarPreview();
-      aviso(
-        info.name
-          ? "¡Datos traídos! Revisa que estén bien antes de guardar."
-          : "No pudimos leer el producto automáticamente; complétalo a mano."
-      );
-      aviso.className = `aviso ${info.name ? "ok" : "error"}`;
+      if (info.name || info.image_url) {
+        aviso("¡Datos traídos! Revisa que estén bien antes de guardar.", "ok");
+      } else {
+        aviso("No pudimos leer el producto automáticamente; complétalo a mano.");
+      }
     } catch (err) {
       aviso(err.message);
     } finally {
       btn.disabled = false;
       btn.textContent = "✨ Autocompletar";
     }
-  });
+  }
+
+  $("btn-autocompletar").addEventListener("click", enriquecer);
+
+  // Detección automática: si pegan un enlace en cualquier campo, va directo
+  // al campo de enlace y se intenta autocompletar sin tocar el botón
+  function esEnlace(texto) {
+    return /^https?:\/\/\S+\.\S+/i.test(texto.trim());
+  }
+
+  for (const idCampo of ["nombre", "amazon-url", "notas"]) {
+    $(idCampo).addEventListener("paste", (e) => {
+      const texto = (e.clipboardData || window.clipboardData)?.getData("text") ?? "";
+      if (!esEnlace(texto)) return; // pegado normal de texto
+      e.preventDefault();
+      $("amazon-url").value = texto.trim();
+      enriquecer();
+    });
+  }
 
   // Guardar (crear o editar)
   $("form-item").addEventListener("submit", async (e) => {

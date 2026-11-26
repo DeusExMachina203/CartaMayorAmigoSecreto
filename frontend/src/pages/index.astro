@@ -50,13 +50,13 @@ import Layout from "../layouts/Layout.astro";
   </section>
 
   <section class="tarjeta como">
-    <h2 style="margin-top:0;">¿Cómo funciona?</h2>
-    <ol style="margin:0; padding-left:1.25rem; display:grid; gap:0.6rem;">
+    <h2 style="margin-top:0; text-align:center;">¿Cómo funciona?</h2>
+    <ol class="pasos">
       <li><strong>Recibes la invitación:</strong> Ernesto comparte un enlace con el código de invitación.</li>
       <li><strong>Te registras:</strong> pones tu nombre y correo, y recibes un código de 6 dígitos. Sin contraseñas.</li>
       <li><strong>Armas tu lista:</strong> agrega los regalos que te gustaría recibir, con fotos y enlaces.</li>
-      <li><strong>El sorteo:</strong> en la fecha acordada, cada uno descubre a quién le toca darle un regalo.</li>
-      <li><strong>Sorpréndelo:</strong> miras su lista, eliges un regalo dentro del presupuesto... y a esperar la fecha. 🎄</li>
+      <li><strong>El sorteo:</strong> toca el botón y descubre a quién le toca darle un regalo.</li>
+      <li><strong>Sorpréndelo:</strong> mira su lista y elige un regalo dentro del presupuesto. 🎄</li>
     </ol>
   </section>
 </Layout>
@@ -150,7 +150,7 @@ import Layout from "../layouts/Layout.astro";
     grid-template-columns: minmax(300px, 1fr) minmax(0, 1.1fr);
     gap: 2rem;
     align-items: center;
-    min-height: 62vh;
+    min-height: 44vh;
   }
   .hero-texto h1 {
     font-size: clamp(2.6rem, 5.5vw, 4.3rem);
@@ -198,6 +198,8 @@ import Layout from "../layouts/Layout.astro";
   .hero-arte img:first-child {
     width: 100%;
     height: auto;
+    max-height: 42vh;
+    object-fit: contain;
     display: block;
     /* desvanece los bordes de la imagen hacia el fondo: sin costuras */
     -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 60px),
@@ -212,10 +214,49 @@ import Layout from "../layouts/Layout.astro";
     mask-composite: intersect;
   }
   .como {
-    margin-top: 2.5rem;
+    margin-top: 1.2rem;
+  }
+  .pasos {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1rem;
+    counter-reset: paso;
+  }
+  .pasos li {
+    counter-increment: paso;
+    position: relative;
+    padding-left: 2rem;
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+  .pasos li::before {
+    content: counter(paso);
+    position: absolute;
+    left: 0;
+    top: 0.05rem;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    background: var(--rojo);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pasos strong {
+    color: var(--verde-oscuro);
   }
 
   @media (max-width: 1000px) {
+    .pasos {
+      grid-template-columns: 1fr;
+      gap: 0.7rem;
+    }
     .hero {
       grid-template-columns: 1fr;
       min-height: 0;
