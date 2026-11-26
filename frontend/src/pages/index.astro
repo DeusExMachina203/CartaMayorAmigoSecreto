@@ -5,7 +5,8 @@ import Layout from "../layouts/Layout.astro";
 <Layout titulo="Inicio">
   <section class="hero">
     <div class="hero-texto">
-      <h1>
+      <a class="btn btn-grande" href="/ingresar">Iniciar sesión</a>
+      <h1 style="margin-top:1.4rem;">
         Amigo
         <img src="/img/hoja.png" alt="" class="hoja" />
         <br />Secreto
@@ -95,6 +96,11 @@ import Layout from "../layouts/Layout.astro";
     align-items: center;
     gap: 1.4rem;
     margin-top: 1.6rem;
+  }
+  .btn-grande {
+    font-size: 1.15rem;
+    padding: 0.95rem 2.6rem;
+    box-shadow: 0 10px 24px rgb(185 67 89 / 0.35);
   }
   .nota-invitacion {
     margin: 1.2rem 0 0;
