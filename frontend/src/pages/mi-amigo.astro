@@ -184,10 +184,8 @@ import Layout from "../layouts/Layout.astro";
       return;
     }
 
-    if (!config.draw_done) {
-      $("sin-sorteo").classList.remove("oculto");
-      return;
-    }
+    // Si ya reveló, resultado directo; si no, el botón de la ruleta.
+    // El sorteo se crea solo con el primer clic (el backend lo maneja).
     if (revelado) {
       mostrar(revelado, config, false);
     } else {
@@ -246,6 +244,10 @@ import Layout from "../layouts/Layout.astro";
     );
     const anguloGanador = idx * paso;
     rueda.dataset.rotacionObjetivo = String(normalizar(180 - anguloGanador));
+
+    // El rectángulo arranca mostrando al que ya está abajo (nunca vacío)
+    const alFondo = Math.round(normalizar(180) / paso) % N;
+    $("marcador").textContent = nombresPool[alFondo];
   }
 
   function normalizar(grados: number) {
@@ -267,10 +269,33 @@ import Layout from "../layouts/Layout.astro";
 
     rueda.style.transform = `rotate(${total}deg)`;
 
+    // Seguimiento en vivo: el nombre que pasa por abajo llena el rectángulo
+    const paso = 360 / nombresPool.length;
+    const marcador = $("marcador");
+    let seguirVivo = true;
+    (function seguir() {
+      if (!seguirVivo) return;
+      const matriz = getComputedStyle(rueda).transform;
+      if (matriz && matriz !== "none") {
+        const v = matriz.match(/matrix\(([^)]+)\)/);
+        if (v) {
+          const valores = v[1].split(",").map(parseFloat);
+          const angulo = Math.atan2(valores[1], valores[0]) * (180 / Math.PI);
+          let idx = Math.round((180 - angulo) / paso) % nombresPool.length;
+          idx = ((idx % nombresPool.length) + nombresPool.length) % nombresPool.length;
+          if (marcador.textContent !== nombresPool[idx]) {
+            marcador.textContent = nombresPool[idx];
+          }
+        }
+      }
+      requestAnimationFrame(seguir);
+    })();
+
     rueda.addEventListener(
       "transitionend",
       async () => {
-        // Al detenerse: marcador rojo con el nombre, confeti y lista
+        seguirVivo = false;
+        // Al detenerse: confeti y lista con el resultado del backend
         await aterrizar(rueda, total);
       },
       { once: true }
@@ -284,8 +309,7 @@ import Layout from "../layouts/Layout.astro";
       api("/api/participantes/config"),
     ]);
 
-    // Marcar la casilla ganadora y ponerla derecha
-    let casillaGanadora: HTMLElement | undefined;
+    // Marcar la casilla ganadora (queda derecha y resaltada)
     const paso = 360 / nombresPool.length;
     for (const casilla of rueda.querySelectorAll(".casilla")) {
       if (casilla.textContent === amigo.name) {
@@ -293,44 +317,24 @@ import Layout from "../layouts/Layout.astro";
         const radio = rueda.clientWidth / 2 - 26;
         casilla.classList.add("ganadora");
         casilla.style.transform = `translate(-50%, -50%) rotate(${angulo}deg) translateY(-${radio}px) rotate(180deg)`;
-        casillaGanadora = casilla as HTMLElement;
         break;
       }
     }
 
-    // El nombre "cae" desde la ruleta hasta dentro del rectángulo rojo
-    setTimeout(() => {
-      const marcador = $("marcador");
-      if (casillaGanadora) {
-        const desde = casillaGanadora.getBoundingClientRect();
-        const hasta = marcador.getBoundingClientRect();
-        const vuelo = casillaGanadora.cloneNode(true) as HTMLElement;
-        vuelo.style.cssText = `position:fixed; left:${desde.left}px; top:${desde.top}px; width:${desde.width}px; margin:0; z-index:70; transition: all 0.7s cubic-bezier(0.55, 0, 0.3, 1);`;
-        document.body.appendChild(vuelo);
-        casillaGanadora.style.visibility = "hidden";
-        requestAnimationFrame(() => {
-          vuelo.style.left = `${hasta.left + (hasta.width - desde.width) / 2}px`;
-          vuelo.style.top = `${hasta.top + (hasta.height - desde.height) / 2}px`;
-        });
-        setTimeout(() => vuelo.remove(), 750);
-      }
+    // El rectángulo rojo ya muestra el nombre que quedó abajo; dejarlo fijo
+    $("marcador").textContent = amigo.name;
 
-      // El nombre queda dentro del rectángulo rojo + confeti 🎉
-      setTimeout(() => {
-        marcador.textContent = amigo.name;
-        lanzarConfeti();
-
-        $("ayuda-presupuesto").textContent =
-          (config.budget_min != null || config.budget_max != null
-            ? `Presupuesto sugerido: S/ ${config.budget_min ?? 0} - S/ ${config.budget_max ?? "∞"}`
-            : "") + (config.event_date ? ` · Intercambio: ${config.event_date}` : "");
-        pintarLista(amigo.wishlist);
-        $("lista-bloque").classList.remove("oculto");
-        $("nombre-amigo").textContent = amigo.name;
-        $("contenido").classList.remove("oculto");
-        $("btn-girar").classList.add("oculto");
-      }, 720);
-    }, 550);
+    // 🎉 Confeti + lista de deseos
+    lanzarConfeti();
+    $("ayuda-presupuesto").textContent =
+      (config.budget_min != null || config.budget_max != null
+        ? `Presupuesto sugerido: S/ ${config.budget_min ?? 0} - S/ ${config.budget_max ?? "∞"}`
+        : "") + (config.event_date ? ` · Intercambio: ${config.event_date}` : "");
+    pintarLista(amigo.wishlist);
+    $("lista-bloque").classList.remove("oculto");
+    $("nombre-amigo").textContent = amigo.name;
+    $("contenido").classList.remove("oculto");
+    $("btn-girar").classList.add("oculto");
   }
 
   /* ---------- Confeti ---------- */
